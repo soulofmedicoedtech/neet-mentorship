@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthenticatedRequest, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -9,6 +9,9 @@ import { CreateChapterDto } from './dto/create-chapter.dto';
 import { CreateTopicDto } from './dto/create-topic.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { AssignCourseFacultyDto } from './dto/assign-course-faculty.dto';
+import { CreateLectureDto } from './dto/create-lecture.dto';
+import { CreateLearningResourceDto } from './dto/create-learning-resource.dto';
+import { ReviewContentDto } from './dto/review-content.dto';
 
 @Controller('academic')
 export class AcademicController {
@@ -39,6 +42,57 @@ export class AcademicController {
   @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN')
   assignFaculty(@Req() req: AuthenticatedRequest, @Param('courseId') courseId: string, @Body() body: AssignCourseFacultyDto) {
     return this.academic.assignFaculty(req.user.sub, courseId, body.facultyId);
+  }
+
+
+  @Get('courses/:courseId/lectures')
+  listPublishedLectures(@Param('courseId') courseId: string) {
+    return this.academic.listPublishedLectures(courseId);
+  }
+
+  @Get('faculty/me/lectures')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('FACULTY')
+  listMyLectures(@Req() req: AuthenticatedRequest) {
+    return this.academic.listMyLectures(req.user.sub);
+  }
+
+  @Post('courses/:courseId/lectures')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'FACULTY', 'CONTENT_MANAGER')
+  createLecture(@Req() req: AuthenticatedRequest, @Param('courseId') courseId: string, @Body() body: CreateLectureDto) {
+    const privileged = (req.user.roles ?? []).some(role => ['SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'CONTENT_MANAGER'].includes(role));
+    return this.academic.createLecture(req.user.sub, courseId, body, privileged);
+  }
+
+  @Post('lectures/:lectureId/resources')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'FACULTY', 'CONTENT_MANAGER')
+  createLearningResource(@Req() req: AuthenticatedRequest, @Param('lectureId') lectureId: string, @Body() body: CreateLearningResourceDto) {
+    const privileged = (req.user.roles ?? []).some(role => ['SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'CONTENT_MANAGER'].includes(role));
+    return this.academic.createLearningResource(req.user.sub, lectureId, body, privileged);
+  }
+
+  @Post('lectures/:lectureId/submit')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'FACULTY', 'CONTENT_MANAGER')
+  submitLecture(@Req() req: AuthenticatedRequest, @Param('lectureId') lectureId: string) {
+    const privileged = (req.user.roles ?? []).some(role => ['SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'CONTENT_MANAGER'].includes(role));
+    return this.academic.submitLecture(req.user.sub, lectureId, privileged);
+  }
+
+  @Get('content-review/queue')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN')
+  listContentReviewQueue() {
+    return this.academic.listContentReviewQueue();
+  }
+
+  @Patch('lectures/:lectureId/review')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN')
+  reviewLecture(@Req() req: AuthenticatedRequest, @Param('lectureId') lectureId: string, @Body() body: ReviewContentDto) {
+    return this.academic.reviewLecture(req.user.sub, lectureId, body);
   }
 
   @Get('subjects')
