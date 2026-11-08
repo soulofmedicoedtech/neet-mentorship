@@ -36,7 +36,7 @@ describe('AcademicService', () => {
     prisma.lecture.findMany.mockResolvedValue([]);
     await service.listPublishedLectures('course1');
     expect(prisma.lecture.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { courseId: 'course1', status: 'PUBLISHED' },
+      where: { courseId: 'course1', status: 'PUBLISHED', course: { active: true } },
       select: expect.objectContaining({ resources: expect.objectContaining({ where: { status: 'PUBLISHED' } }) }),
     }));
   });
