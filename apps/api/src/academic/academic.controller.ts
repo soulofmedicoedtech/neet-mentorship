@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthenticatedRequest, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -17,6 +17,7 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { ListQuestionsDto } from './dto/list-questions.dto';
 import { SubmitQuestionAttemptDto } from './dto/submit-question-attempt.dto';
 import { ReviewQuestionDto } from './dto/review-question.dto';
+import { ListQuestionBookmarksDto } from './dto/list-question-bookmarks.dto';
 
 @Controller('academic')
 export class AcademicController {
@@ -57,6 +58,28 @@ export class AcademicController {
   @Roles('STUDENT')
   listPublishedQuestions(@Query() query: ListQuestionsDto) {
     return this.academic.listPublishedQuestions(query);
+  }
+
+
+  @Get('student/me/question-bookmarks')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT')
+  listMyQuestionBookmarks(@Req() req: AuthenticatedRequest, @Query() query: ListQuestionBookmarksDto) {
+    return this.academic.listQuestionBookmarks(req.user.sub, query);
+  }
+
+  @Post('questions/:questionId/bookmark')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT')
+  bookmarkQuestion(@Req() req: AuthenticatedRequest, @Param('questionId') questionId: string) {
+    return this.academic.bookmarkQuestion(req.user.sub, questionId);
+  }
+
+  @Delete('questions/:questionId/bookmark')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT')
+  removeQuestionBookmark(@Req() req: AuthenticatedRequest, @Param('questionId') questionId: string) {
+    return this.academic.removeQuestionBookmark(req.user.sub, questionId);
   }
 
   @Post('questions/:questionId/attempt')
