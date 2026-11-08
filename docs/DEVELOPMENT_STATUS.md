@@ -22,7 +22,7 @@ Last updated: 2026-11-08
 - [x] Add lecture/video metadata, PDF/external-link resource records and a draft → submitted → approved/rejected → published review workflow.
 - [x] Add faculty lecture drafting/submission UI, academic-admin review/publish controls, and a student read-only published course/lecture/resource view.
 - [ ] Integrate secure binary uploads/object storage, signed delivery URLs and malware scanning.
-- [ ] Add student course enrolment and learning progress tracking.
+- [x] Add student self-enrolment in active courses, student-scoped published learning access, lecture completion records and course completion tracking.
 - [ ] Provision local PostgreSQL and validate the complete initial migration.
 - [x] Confirm latest Phase 2 CI passed on commit `60dfa2d`: web build, Prisma client generation, API build, all API unit tests and Prisma schema validation.
 - [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete permission-based RBAC.
@@ -41,7 +41,7 @@ Last updated: 2026-11-08
 - Privileged roles must be granted by an authorised database operator; there is no public role-elevation endpoint.
 - Admins can assign eligible active FACULTY users with a FacultyProfile. Faculty see only records assigned to their own user ID and can submit recommendations; they cannot approve/decline or browse other applications.
 - Faculty onboarding/invitation and workload reporting are not implemented.
-- Access tokens remain in memory; refreshing the page signs out. The learning roadmap is informational; the Phase 2 curriculum and course APIs are connected; faculty can draft lectures and attach PDF/external-link references, academic admins can review/publish, and students can view published learning content. Binary file storage and student course enrolment are not implemented.
+- Access tokens remain in memory; refreshing the page signs out. The learning roadmap is informational; the Phase 2 curriculum and course APIs are connected; faculty can draft lectures and attach PDF/external-link references, academic admins can review/publish, and students can view published learning content. Binary file storage is not implemented. Student self-enrolment and lecture/course progress tracking are implemented.
 
 ## Existing implementation and gaps
 - React + Vite landing page and API-connected student portal.
@@ -51,7 +51,7 @@ Last updated: 2026-11-08
 - Student authentication must not be exposed publicly until the remaining security controls, migrations, HTTPS, monitoring and security review are complete.
 
 ## Pending phases
-Faculty onboarding and workload reporting → secure file storage and signed delivery → student enrolment/progress → QBank → examination engine → video streaming → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
+Faculty onboarding and workload reporting → secure file storage and signed delivery → QBank → examination engine → video streaming → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
 
 ## Release rule
 A feature is complete only after implementation and tests. External services, paid infrastructure, production releases and irreversible operations require owner approval.
