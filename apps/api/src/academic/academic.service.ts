@@ -124,6 +124,49 @@ export class AcademicService {
     return { ...attempt, correctOption: correctOption ? { id: correctOption.id, text: correctOption.text } : null, explanation: question.explanation };
   }
 
+
+  async listQuestionBookmarks(userId: string, filters: { page?: number; limit?: number }) {
+    const profile = await this.prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
+    if (!profile) throw new NotFoundException('Student profile not found');
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+    const where = { studentProfileId: profile.id, question: { status: 'PUBLISHED' as const } };
+    const [total, items] = await Promise.all([
+      this.prisma.questionBookmark.count({ where }),
+      this.prisma.questionBookmark.findMany({
+        where, skip: (page - 1) * limit, take: limit,
+        select: { id: true, createdAt: true, question: { select: {
+          id: true, questionText: true, examTrack: true, difficulty: true, yearAsked: true,
+          subject: { select: { id: true, code: true, name: true } },
+          topic: { select: { id: true, title: true } },
+          options: { select: { id: true, text: true, sortOrder: true }, orderBy: { sortOrder: 'asc' } },
+        } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+    return { items, total, page, limit };
+  }
+
+  async bookmarkQuestion(userId: string, questionId: string) {
+    const profile = await this.prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
+    if (!profile) throw new NotFoundException('Student profile not found');
+    const question = await this.prisma.question.findFirst({ where: { id: questionId, status: 'PUBLISHED' }, select: { id: true } });
+    if (!question) throw new NotFoundException('Published question not found');
+    return this.prisma.questionBookmark.upsert({
+      where: { studentProfileId_questionId: { studentProfileId: profile.id, questionId } },
+      create: { studentProfileId: profile.id, questionId },
+      update: {},
+      select: { id: true, questionId: true, createdAt: true },
+    });
+  }
+
+  async removeQuestionBookmark(userId: string, questionId: string) {
+    const profile = await this.prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
+    if (!profile) throw new NotFoundException('Student profile not found');
+    const removed = await this.prisma.questionBookmark.deleteMany({ where: { studentProfileId: profile.id, questionId } });
+    return { removed: removed.count > 0 };
+  }
+
   async enrollStudentInCourse(userId: string, courseId: string) {
     const profile = await this.prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
     if (!profile) throw new NotFoundException('Student profile not found');
