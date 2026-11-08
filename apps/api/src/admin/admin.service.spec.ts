@@ -28,6 +28,13 @@ describe('AdminService', () => {
     expect(prisma.mentorshipApplication.findMany).not.toHaveBeenCalled();
   });
 
+  it('prevents changing a terminal application status', async () => {
+    jest.mocked(prisma.mentorshipApplication.findUnique).mockResolvedValue({ id: 'app-1', status: 'APPROVED' } as never);
+    await expect(service.reviewMentorshipApplication('app-1', 'admin-1', { status: 'DECLINED' }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('returns not found for an unknown application', async () => {
     jest.mocked(prisma.mentorshipApplication.findUnique).mockResolvedValue(null);
     await expect(service.reviewMentorshipApplication('missing', 'admin-1', { status: 'APPROVED' }))
