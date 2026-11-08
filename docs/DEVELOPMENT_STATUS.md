@@ -15,9 +15,9 @@ Last updated: 2026-11-08
 - [ ] Install dependencies and run type-check/build in a local development environment.
 - [ ] Provision local PostgreSQL and validate the complete initial migration.
 - [ ] Confirm a successful CI run on the latest PR commit.
-- [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete RBAC.
-- [ ] Add a protected mentor/admin application review workflow.
-- [ ] Add end-to-end tests for registration, login, profile persistence, college selection and mentorship application flows.
+- [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete permission-based RBAC.
+- [x] Add a protected admin/academic-admin mentorship review API with role guard and transactional audit logging.\n- [x] Add a role-aware admin workspace to list, filter, approve, decline and start review of mentorship applications.\n- [ ] Add mentor assignment, mentor-specific application visibility and mentor portal.
+- [ ] Add end-to-end tests for registration, login, profile persistence, college selection, mentorship application and admin review flows.
 
 ## Current student portal prototype
 - Student portal is reachable from the landing page using the **Student Portal Preview** entry.
@@ -35,7 +35,7 @@ Last updated: 2026-11-08
 - Student authentication must not be exposed publicly until the remaining security controls, migrations, HTTPS, monitoring and security review are complete.
 
 ## Pending phases
-Mentor/admin application review workflow → academic CMS → QBank → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
+Mentor assignment and mentor portal → academic CMS → QBank → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
 
 ## Release rule
 A feature is complete only after implementation and tests. External services, paid infrastructure, production releases and irreversible operations require owner approval.
