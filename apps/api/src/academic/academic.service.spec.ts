@@ -36,7 +36,7 @@ describe('AcademicService', () => {
   it('rejects a duplicate subject code', async () => {
     const { Prisma } = await import('@prisma/client');
     const known = new Prisma.PrismaClientKnownRequestError('duplicate', { code: 'P2002', clientVersion: 'test' });
-    prisma.$transaction.mockRejectedValueOnce(known);
+    prisma.$transaction.mockRejectedValueOnce(known as never);
     await expect(service.createSubject('admin1', { code: 'ANAT', name: 'Anatomy' })).rejects.toBeInstanceOf(ConflictException);
   });
 
