@@ -19,7 +19,10 @@ Last updated: 2026-11-08
 - [x] Add course records linked to subjects, admin-controlled course creation, verified faculty assignment and a faculty-only assigned-course endpoint with transactional audit logging.
 - [x] Add a dedicated Prisma migration for course and faculty assignment tables.
 - [ ] Add course creation/assignment controls to the academic CMS and assigned-course view to the faculty workspace.
-- [ ] Add lecture/video metadata, notes/documents and content publication review workflow.
+- [x] Add lecture/video metadata, PDF/external-link resource records and a draft → submitted → approved/rejected → published review workflow.
+- [x] Add faculty lecture drafting/submission UI, academic-admin review/publish controls, and a student read-only published course/lecture/resource view.
+- [ ] Integrate secure binary uploads/object storage, signed delivery URLs and malware scanning.
+- [ ] Add student course enrolment and learning progress tracking.
 - [ ] Provision local PostgreSQL and validate the complete initial migration.
 - [x] Confirm Phase 1 CI succeeded on commit `536cfd5`; rerun CI for the new Phase 2 commit.
 - [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete permission-based RBAC.
@@ -48,7 +51,7 @@ Last updated: 2026-11-08
 - Student authentication must not be exposed publicly until the remaining security controls, migrations, HTTPS, monitoring and security review are complete.
 
 ## Pending phases
-Faculty onboarding and workload reporting → course/faculty assignment UI → lecture and notes CMS → content publication review → student enrolment → QBank → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
+Faculty onboarding and workload reporting → course/faculty assignment UI → lecture and notes CMS → content publication review → secure file storage → student enrolment → QBank → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
 
 ## Release rule
 A feature is complete only after implementation and tests. External services, paid infrastructure, production releases and irreversible operations require owner approval.
