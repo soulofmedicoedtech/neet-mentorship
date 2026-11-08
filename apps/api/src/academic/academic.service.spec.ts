@@ -19,6 +19,7 @@ describe('AcademicService', () => {
     courseEnrollment: { upsert: jest.fn(), update: jest.fn() },
     lectureProgress: { findUnique: jest.fn(), upsert: jest.fn(), count: jest.fn() },
     questionAttempt: { create: jest.fn() },
+    questionBookmark: { upsert: jest.fn(), deleteMany: jest.fn() },
     auditEvent: { create: jest.fn() },
   };
   const prisma = {
@@ -31,6 +32,7 @@ describe('AcademicService', () => {
     question: { findMany: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
     topic: { findFirst: jest.fn() },
     questionAttempt: { create: jest.fn() },
+    questionBookmark: { count: jest.fn(), findMany: jest.fn(), upsert: jest.fn(), deleteMany: jest.fn() },
     $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
   };
   let service: AcademicService;
@@ -57,6 +59,41 @@ describe('AcademicService', () => {
       { text: 'PP cell', isCorrect: false },
     ],
   };
+
+
+  it('creates a bookmark only for a published question and scopes it to the student profile', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.question.findFirst.mockResolvedValue({ id: 'question1' });
+    prisma.questionBookmark.upsert.mockResolvedValue({ id: 'bookmark1', questionId: 'question1' });
+    await expect(service.bookmarkQuestion('student1', 'question1')).resolves.toMatchObject({ id: 'bookmark1' });
+    expect(prisma.questionBookmark.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { studentProfileId_questionId: { studentProfileId: 'profile1', questionId: 'question1' } },
+    }));
+  });
+
+  it('does not allow bookmarking an unpublished question', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.question.findFirst.mockResolvedValue(null);
+    await expect(service.bookmarkQuestion('student1', 'draft-question')).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.questionBookmark.upsert).not.toHaveBeenCalled();
+  });
+
+  it('removes bookmarks only from the requesting student profile', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.questionBookmark.deleteMany.mockResolvedValue({ count: 1 });
+    await expect(service.removeQuestionBookmark('student1', 'question1')).resolves.toEqual({ removed: true });
+    expect(prisma.questionBookmark.deleteMany).toHaveBeenCalledWith({ where: { studentProfileId: 'profile1', questionId: 'question1' } });
+  });
+
+  it('lists only published bookmarked questions and omits answer keys', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.questionBookmark.count.mockResolvedValue(1);
+    prisma.questionBookmark.findMany.mockResolvedValue([{ id: 'bookmark1' }]);
+    await expect(service.listQuestionBookmarks('student1', { page: 1, limit: 10 })).resolves.toMatchObject({ total: 1 });
+    const query = prisma.questionBookmark.findMany.mock.calls[0][0];
+    expect(query.where).toEqual({ studentProfileId: 'profile1', question: { status: 'PUBLISHED' } });
+    expect(query.select.question.options.select).not.toHaveProperty('isCorrect');
+  });
 
   it('requires exactly one correct answer for a single-best-answer question', async () => {
     await expect(service.createQuestion('editor1', { ...validQuestionInput, options: validQuestionInput.options.map(option => ({ ...option, isCorrect: false })) }, true)).rejects.toBeInstanceOf(ConflictException);
