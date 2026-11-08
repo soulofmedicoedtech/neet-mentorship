@@ -16,7 +16,9 @@ Last updated: 2026-11-08
 - [ ] Provision local PostgreSQL and validate the complete initial migration.
 - [ ] Confirm a successful CI run on the latest PR commit.
 - [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete permission-based RBAC.
-- [x] Add a protected admin/academic-admin mentorship review API with role guard and transactional audit logging.\n- [x] Add a role-aware admin workspace to list, filter, approve, decline and start review of mentorship applications.\n- [ ] Add mentor assignment, mentor-specific application visibility and mentor portal.
+- [x] Add a protected admin/academic-admin mentorship review API with role guard and transactional audit logging.
+- [x] Add a role-aware admin workspace to list, filter, approve, decline and start review of mentorship applications.
+- [ ] Add mentor assignment, mentor-specific application visibility and mentor portal.
 - [ ] Add end-to-end tests for registration, login, profile persistence, college selection, mentorship application and admin review flows.
 
 ## Current student portal prototype
