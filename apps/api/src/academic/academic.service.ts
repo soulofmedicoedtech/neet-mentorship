@@ -6,11 +6,105 @@ import { CreateUnitDto } from './dto/create-unit.dto';
 import { CreateChapterDto } from './dto/create-chapter.dto';
 import { CreateTopicDto } from './dto/create-topic.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { CreateLectureDto } from './dto/create-lecture.dto';
+import { CreateLearningResourceDto } from './dto/create-learning-resource.dto';
+import { ReviewContentDto } from './dto/review-content.dto';
 
 @Injectable()
 export class AcademicService {
   constructor(private readonly prisma: PrismaService) {}
 
+
+
+  listPublishedLectures(courseId: string) {
+    return this.prisma.lecture.findMany({
+      where: { courseId, status: 'PUBLISHED' },
+      select: {
+        id: true, title: true, description: true, videoUrl: true, videoType: true,
+        durationSec: true, sortOrder: true, topic: { select: { id: true, title: true } },
+        resources: { where: { status: 'PUBLISHED' }, select: { id: true, title: true, type: true, url: true, description: true, sortOrder: true }, orderBy: { sortOrder: 'asc' } },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  listMyLectures(authorId: string) {
+    return this.prisma.lecture.findMany({
+      where: { authorId },
+      select: { id: true, courseId: true, title: true, status: true, reviewNote: true, videoUrl: true, videoType: true, resources: { select: { id: true, title: true, type: true, url: true, status: true, reviewNote: true } } },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  async createLecture(actorId: string, courseId: string, input: CreateLectureDto, isPrivileged: boolean) {
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, subjectId: true } });
+    if (!course) throw new NotFoundException('Course not found');
+    if (!isPrivileged) {
+      const assignment = await this.prisma.courseFacultyAssignment.findUnique({ where: { courseId_facultyId: { courseId, facultyId: actorId } }, select: { id: true } });
+      if (!assignment) throw new NotFoundException('Course assignment not found for this faculty account');
+    }
+    if (input.topicId) {
+      const topic = await this.prisma.topic.findFirst({ where: { id: input.topicId, chapter: { unit: { subjectId: course.subjectId } } }, select: { id: true } });
+      if (!topic) throw new NotFoundException('Topic does not belong to the course subject');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const lecture = await tx.lecture.create({
+        data: { courseId, authorId: actorId, topicId: input.topicId, title: input.title.trim(), description: input.description?.trim(), videoUrl: input.videoUrl, videoType: input.videoType, durationSec: input.durationSec, sortOrder: input.sortOrder ?? 0 },
+      });
+      await tx.auditEvent.create({ data: { actorId, action: 'ACADEMIC_LECTURE_CREATED', resource: 'Lecture', resourceId: lecture.id, metadata: { courseId, topicId: input.topicId ?? null } as Prisma.InputJsonValue } });
+      return lecture;
+    });
+  }
+
+  async createLearningResource(actorId: string, lectureId: string, input: CreateLearningResourceDto, isPrivileged: boolean) {
+    const lecture = await this.prisma.lecture.findUnique({ where: { id: lectureId }, select: { id: true, authorId: true } });
+    if (!lecture) throw new NotFoundException('Lecture not found');
+    if (!isPrivileged && lecture.authorId !== actorId) throw new NotFoundException('Lecture not found for this faculty account');
+    return this.prisma.$transaction(async (tx) => {
+      const resource = await tx.learningResource.create({
+        data: { lectureId, authorId: actorId, title: input.title.trim(), type: input.type, url: input.url, description: input.description?.trim(), sortOrder: input.sortOrder ?? 0 },
+      });
+      await tx.auditEvent.create({ data: { actorId, action: 'ACADEMIC_RESOURCE_CREATED', resource: 'LearningResource', resourceId: resource.id, metadata: { lectureId, type: input.type } as Prisma.InputJsonValue } });
+      return resource;
+    });
+  }
+
+  async submitLecture(actorId: string, lectureId: string, isPrivileged: boolean) {
+    return this.prisma.$transaction(async (tx) => {
+      const lecture = await tx.lecture.findUnique({ where: { id: lectureId }, select: { id: true, authorId: true, status: true } });
+      if (!lecture || (!isPrivileged && lecture.authorId !== actorId)) throw new NotFoundException('Lecture not found');
+      if (!['DRAFT', 'REJECTED'].includes(lecture.status)) throw new ConflictException('Only draft or rejected lectures can be submitted');
+      const updated = await tx.lecture.update({ where: { id: lectureId }, data: { status: 'SUBMITTED', submittedAt: new Date(), reviewNote: null }, select: { id: true, status: true, submittedAt: true } });
+      await tx.learningResource.updateMany({ where: { lectureId, status: { in: ['DRAFT', 'REJECTED'] } }, data: { status: 'SUBMITTED', submittedAt: new Date(), reviewNote: null } });
+      await tx.auditEvent.create({ data: { actorId, action: 'ACADEMIC_LECTURE_SUBMITTED', resource: 'Lecture', resourceId: lectureId } });
+      return updated;
+    });
+  }
+
+  listContentReviewQueue() {
+    return this.prisma.lecture.findMany({
+      where: { status: 'SUBMITTED' },
+      select: { id: true, title: true, description: true, videoUrl: true, status: true, submittedAt: true, course: { select: { code: true, title: true } }, author: { select: { id: true, displayName: true, email: true } }, resources: { select: { id: true, title: true, type: true, url: true, status: true } } },
+      orderBy: { submittedAt: 'asc' },
+      take: 100,
+    });
+  }
+
+  async reviewLecture(actorId: string, lectureId: string, input: ReviewContentDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.lecture.findUnique({ where: { id: lectureId }, select: { id: true, status: true } });
+      if (!current) throw new NotFoundException('Lecture not found');
+      const allowed = current.status === 'SUBMITTED' ? ['APPROVED', 'REJECTED'] : current.status === 'APPROVED' ? ['PUBLISHED'] : [];
+      if (!allowed.includes(input.status)) throw new ConflictException('Invalid content review transition');
+      const now = new Date();
+      const lecture = await tx.lecture.update({ where: { id: lectureId }, data: { status: input.status, reviewNote: input.reviewNote?.trim() ?? null, reviewedAt: now, publishedAt: input.status === 'PUBLISHED' ? now : null } });
+      if (input.status === 'PUBLISHED') await tx.learningResource.updateMany({ where: { lectureId, status: 'APPROVED' }, data: { status: 'PUBLISHED', publishedAt: now } });
+      if (input.status === 'REJECTED') await tx.learningResource.updateMany({ where: { lectureId, status: 'SUBMITTED' }, data: { status: 'REJECTED', reviewNote: input.reviewNote?.trim() ?? null, reviewedAt: now } });
+      if (input.status === 'APPROVED') await tx.learningResource.updateMany({ where: { lectureId, status: 'SUBMITTED' }, data: { status: 'APPROVED', reviewNote: null, reviewedAt: now } });
+      await tx.auditEvent.create({ data: { actorId, action: 'ACADEMIC_LECTURE_REVIEWED', resource: 'Lecture', resourceId: lectureId, metadata: { previousStatus: current.status, status: input.status } as Prisma.InputJsonValue } });
+      return lecture;
+    });
+  }
 
   listCourses() {
     return this.prisma.course.findMany({
