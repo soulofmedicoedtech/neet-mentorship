@@ -172,3 +172,14 @@ Content changes and review decisions are audit logged. Students cannot see draft
 - `PATCH /api/v1/academic/lectures/:lectureId/progress` — records non-decreasing watched seconds and/or completion for a published lecture in a course the student is enrolled in. The course is marked complete when every currently published lecture has been completed.
 
 The migration `20261108230000_student_learning_progress` must be applied before using these endpoints. Enrolment is currently open to authenticated student accounts; paid access, batch entitlements, subscriptions and payment checks are not implemented. Progress records are student-scoped and cannot be written for unpublished lectures or courses the student has not joined.
+
+
+## Question bank foundation
+
+- `GET /api/v1/academic/questions?examTrack=NEET_PG&page=1&limit=20` — STUDENT-only paginated list of published MCQs. Filters include subject, exam track and difficulty. Correct-answer flags and explanations are deliberately omitted from the question payload.
+- `POST /api/v1/academic/questions/:questionId/attempt` — STUDENT-only answer submission. The API validates that the selected option belongs to the published question, stores the student's attempt and returns correctness, correct option and explanation after submission.
+- `POST /api/v1/academic/questions` — creates a draft single-best-answer MCQ. QUESTION_BANK_MANAGER and academic administrators can author across subjects; faculty must have an active course assignment in the selected subject. Exactly one option must be marked correct.
+- `POST /api/v1/academic/questions/:questionId/submit` — author submits a draft or rejected question for review.
+- `GET /api/v1/academic/question-review/queue` and `PATCH /api/v1/academic/questions/:questionId/review` — question-bank managers/academic administrators review, approve/reject and publish questions.
+
+The migration `20261108233000_question_bank_foundation` must be applied before using these endpoints. Only single-best-answer MCQs are supported in this foundation. No question content is seeded; only questions checked against an authorised source should be entered. This is not an AI-generated question pipeline or an examination engine.
