@@ -150,3 +150,16 @@ All write routes require a bearer token with one of SUPER_ADMIN, ADMIN, ACADEMIC
 - `GET /api/v1/academic/faculty/me/courses` — faculty-only list of courses assigned to the signed-in faculty account.
 
 Course creation, assignment and audit records are transactional. Course codes are unique. Repeating the same faculty assignment is idempotent. The schema migration `20261108210000_course_faculty_assignment` must be applied before using these endpoints. This slice provides course structure and faculty ownership only; lecture/video and note/document records, publication workflow and student enrolment remain pending.
+
+
+## Lectures, video references and study resources
+
+- `GET /api/v1/academic/courses/:courseId/lectures` — public read-only access to published lectures and published resources only.
+- `GET /api/v1/academic/faculty/me/lectures` — faculty-only list of the signed-in faculty member's authored lectures and resource metadata.
+- `POST /api/v1/academic/courses/:courseId/lectures` — create a draft lecture. Faculty must be assigned to the course; academic admins and content managers may create across courses.
+- `POST /api/v1/academic/lectures/:lectureId/resources` — add a PDF or external-link resource to a lecture draft. Faculty authors may edit their own lecture content; privileged academic editors may assist.
+- `POST /api/v1/academic/lectures/:lectureId/submit` — submit a draft/rejected lecture and its draft resources for academic review.
+- `GET /api/v1/academic/content-review/queue` — academic-admin review queue for submitted and approved lectures.
+- `PATCH /api/v1/academic/lectures/:lectureId/review` — transition SUBMITTED to APPROVED/REJECTED, then APPROVED to PUBLISHED. Publishing also publishes approved attached resources.
+
+Content changes and review decisions are audit logged. Students cannot see draft, submitted, approved-but-unpublished or rejected content. Video and PDF records currently store HTTPS URLs and metadata only; binary upload, malware scanning, signed URLs, storage lifecycle and provider integration are not implemented. The migration `20261108213000_lecture_learning_resources` must be applied before using these endpoints.
