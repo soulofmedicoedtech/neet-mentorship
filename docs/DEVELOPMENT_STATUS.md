@@ -21,13 +21,14 @@ Last updated: 2026-11-08
 - [ ] Add mentor assignment, mentor-specific application visibility and mentor portal.
 - [ ] Add end-to-end tests for registration, login, profile persistence, college selection, mentorship application and admin review flows.
 
-## Current student portal prototype
-- Student portal is reachable from the landing page using the **Student Portal Preview** entry.
-- Profile fields include professional year, college, university, exam goal and preferred language.
-- Mentorship application preview captures goals, challenges and preferred contact method.
-- Learning roadmap lists planned video, notes, QBank, university preparation and test modules.
-- These are browser-session-only preview interactions. They are not persisted, authenticated, submitted to a backend or connected to a real mentor.
-- Do not use demo data or preview interactions as real student records.
+## Current student and admin workspaces
+- Student portal supports API-backed registration/login, profile persistence, college lookup and mentorship applications.
+- A separate demo preview remains browser-session-only and is not submitted to the API.
+- Admin workspace is shown only when the signed-in token includes SUPER_ADMIN, ADMIN or ACADEMIC_ADMIN. It supports application listing, status filtering and review transitions.
+- Admin status changes are written to AuditEvent in the same database transaction as the application update.
+- Privileged roles must be granted by an authorised database operator; there is no public role-elevation endpoint.
+- Mentor assignment, mentor-specific application visibility and a mentor portal are not implemented.
+- Access tokens remain in memory; refreshing the page signs out. The learning roadmap is informational and not connected to course content.
 
 ## Existing implementation and gaps
 - React + Vite landing page and API-connected student portal.
