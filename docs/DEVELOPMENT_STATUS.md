@@ -11,9 +11,9 @@ Last updated: 2026-11-08
 - [x] Add student registration/login API foundation (not production-ready).
 - [x] Add responsive student portal front-end prototype with profile, mentorship and learning roadmap views.
 - [x] Add authenticated student profile read/update API and student-owned mentorship application endpoints.
-- [x] Add college catalogue read endpoint and initial schema migration (catalogue data not yet seeded).
+- [x] Add college catalogue read endpoint and complete initial PostgreSQL schema migration (catalogue data not yet seeded).
 - [ ] Install dependencies and run type-check/build in a local development environment.
-- [ ] Provision local PostgreSQL and validate first migration.
+- [ ] Provision local PostgreSQL and validate the complete initial migration.
 - [ ] Confirm a successful CI run on the latest PR commit.
 - [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete RBAC.
 - [ ] Add a protected mentor/admin application review workflow.
