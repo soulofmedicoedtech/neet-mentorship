@@ -151,3 +151,18 @@
 .publishedResources{display:grid;align-content:start;gap:5px;font-size:12px}
 .publishedResources>b{color:var(--muted,#667085)}
 @media(max-width:650px){.resourceEditor{grid-template-columns:1fr}.publishedLecture{grid-template-columns:1fr}.publishedCourseToggle{align-items:flex-start;flex-direction:column}}
+
+
+/* Student course enrollment and completion tracking */
+.enrolledCourseHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 8px}
+.enrolledCourseHeading>span:first-child{display:grid;gap:4px}
+.enrolledCourseHeading small{color:var(--muted,#667085)}
+.courseProgressCount{font-size:12px;font-weight:700;color:var(--muted,#667085);white-space:nowrap}
+.courseProgressTrack{height:6px;background:#edf0f4;border-radius:20px;margin:0 16px 10px;overflow:hidden}
+.courseProgressTrack span{display:block;height:100%;background:#d71920;border-radius:20px;transition:width .2s ease}
+.completeLectureButton,.completedLectureButton{align-self:center;border:1px solid #d71920;border-radius:8px;padding:8px 11px;font:600 11px 'DM Sans';white-space:nowrap;cursor:pointer}
+.completeLectureButton{background:#d71920;color:#fff}
+.completedLectureButton{background:#f2f4f7;color:#667085;border-color:#e4e7ec;cursor:default}
+.enrollCourseButton{padding:8px 12px;font-size:11px;white-space:nowrap}
+.publishedCourse .publishedCourseToggle{cursor:default}
+@media(max-width:650px){.enrolledCourseHeading{align-items:flex-start;flex-direction:column}.completeLectureButton,.completedLectureButton{justify-self:start}}
