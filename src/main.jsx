@@ -110,6 +110,7 @@ function StudentPortal({ session, onBack, onLogout }) {
 
   async function searchColleges(value) {
     setCollegeSearch(value);
+    if (!preview && profile.college && value !== profile.college.name) setProfile(v => ({ ...v, collegeId:'', college:null }));
     if (preview || !value.trim()) { setColleges([]); return; }
     try {
       const result = await api(`/colleges?search=${encodeURIComponent(value.trim())}`);
