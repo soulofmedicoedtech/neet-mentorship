@@ -7,10 +7,39 @@ import { CreateSubjectDto } from './dto/create-subject.dto';
 import { CreateUnitDto } from './dto/create-unit.dto';
 import { CreateChapterDto } from './dto/create-chapter.dto';
 import { CreateTopicDto } from './dto/create-topic.dto';
+import { CreateCourseDto } from './dto/create-course.dto';
+import { AssignCourseFacultyDto } from './dto/assign-course-faculty.dto';
 
 @Controller('academic')
 export class AcademicController {
   constructor(private readonly academic: AcademicService) {}
+
+
+  @Get('courses')
+  listCourses() {
+    return this.academic.listCourses();
+  }
+
+  @Get('faculty/me/courses')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('FACULTY')
+  listMyCourses(@Req() req: AuthenticatedRequest) {
+    return this.academic.listMyCourses(req.user.sub);
+  }
+
+  @Post('courses')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN')
+  createCourse(@Req() req: AuthenticatedRequest, @Body() body: CreateCourseDto) {
+    return this.academic.createCourse(req.user.sub, body);
+  }
+
+  @Post('courses/:courseId/faculty')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN')
+  assignFaculty(@Req() req: AuthenticatedRequest, @Param('courseId') courseId: string, @Body() body: AssignCourseFacultyDto) {
+    return this.academic.assignFaculty(req.user.sub, courseId, body.facultyId);
+  }
 
   @Get('subjects')
   listCurriculum() {
