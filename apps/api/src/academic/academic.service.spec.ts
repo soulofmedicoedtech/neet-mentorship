@@ -10,20 +10,25 @@ describe('AcademicService', () => {
     topic: { create: jest.fn() },
     course: { create: jest.fn(), findUnique: jest.fn() },
     lecture: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), count: jest.fn() },
+    question: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     learningResource: { create: jest.fn(), updateMany: jest.fn() },
     user: { findFirst: jest.fn() },
     courseFacultyAssignment: { upsert: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
     courseEnrollment: { upsert: jest.fn(), update: jest.fn() },
     lectureProgress: { findUnique: jest.fn(), upsert: jest.fn(), count: jest.fn() },
+    questionAttempt: { create: jest.fn() },
     auditEvent: { create: jest.fn() },
   };
   const prisma = {
-    subject: { findMany: jest.fn() },
+    subject: { findMany: jest.fn(), findFirst: jest.fn() },
     course: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
-    courseFacultyAssignment: { findMany: jest.fn(), findUnique: jest.fn() },
+    courseFacultyAssignment: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
     lecture: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
     studentProfile: { findUnique: jest.fn() },
     courseEnrollment: { findMany: jest.fn(), findUnique: jest.fn() },
+    question: { findMany: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
+    topic: { findFirst: jest.fn() },
+    questionAttempt: { create: jest.fn() },
     $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
   };
   let service: AcademicService;
@@ -36,6 +41,77 @@ describe('AcademicService', () => {
 
 
 
+
+
+  const validQuestionInput = {
+    subjectId: 'subject1',
+    examTrack: 'NEET_PG' as const,
+    questionText: 'Which cell produces insulin?',
+    explanation: 'Beta cells of the pancreatic islets produce insulin.',
+    options: [
+      { text: 'Alpha cell', isCorrect: false },
+      { text: 'Beta cell', isCorrect: true },
+      { text: 'Delta cell', isCorrect: false },
+      { text: 'PP cell', isCorrect: false },
+    ],
+  };
+
+  it('requires exactly one correct answer for a single-best-answer question', async () => {
+    await expect(service.createQuestion('editor1', { ...validQuestionInput, options: validQuestionInput.options.map(option => ({ ...option, isCorrect: false })) }, true)).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.question.create).not.toHaveBeenCalled();
+  });
+
+  it('creates an MCQ draft with options and an audit event for an authorised editor', async () => {
+    prisma.subject.findFirst.mockResolvedValue({ id: 'subject1' });
+    tx.question.create.mockResolvedValue({ id: 'question1', status: 'DRAFT' });
+    await expect(service.createQuestion('editor1', validQuestionInput, true)).resolves.toMatchObject({ id: 'question1' });
+    expect(tx.question.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ subjectId: 'subject1', options: { create: expect.arrayContaining([expect.objectContaining({ isCorrect: true })]) } }),
+    }));
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'QBANK_QUESTION_CREATED' }) }));
+  });
+
+  it('requires faculty to be assigned to an active course in the question subject', async () => {
+    prisma.subject.findFirst.mockResolvedValue({ id: 'subject1' });
+    prisma.courseFacultyAssignment.findFirst.mockResolvedValue(null);
+    await expect(service.createQuestion('faculty1', validQuestionInput, false)).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.question.create).not.toHaveBeenCalled();
+  });
+
+  it('returns only published questions without exposing correct-answer flags or explanations', async () => {
+    prisma.question.count.mockResolvedValue(1);
+    prisma.question.findMany.mockResolvedValue([{ id: 'question1' }]);
+    await expect(service.listPublishedQuestions({ page: 1, limit: 10 })).resolves.toMatchObject({ total: 1, page: 1 });
+    const query = prisma.question.findMany.mock.calls[0][0];
+    expect(query.where).toEqual({ status: 'PUBLISHED' });
+    expect(query.select).not.toHaveProperty('explanation');
+    expect(query.select.options.select).not.toHaveProperty('isCorrect');
+  });
+
+  it('grades a student answer only against a published question and returns feedback after submission', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.question.findFirst.mockResolvedValue({
+      id: 'question1', explanation: 'Beta cells produce insulin.',
+      options: [{ id: 'opt1', text: 'Beta cell', isCorrect: true }, { id: 'opt2', text: 'Alpha cell', isCorrect: false }],
+    });
+    prisma.questionAttempt.create.mockResolvedValue({ id: 'attempt1', isCorrect: true });
+    await expect(service.submitQuestionAttempt('student1', 'question1', { selectedOptionId: 'opt1' })).resolves.toMatchObject({
+      id: 'attempt1', isCorrect: true, correctOption: { id: 'opt1', text: 'Beta cell' }, explanation: 'Beta cells produce insulin.',
+    });
+  });
+
+  it('rejects a selected option that belongs to another question', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.question.findFirst.mockResolvedValue({ id: 'question1', options: [{ id: 'opt1', text: 'Correct', isCorrect: true }] });
+    await expect(service.submitQuestionAttempt('student1', 'question1', { selectedOptionId: 'other' })).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.questionAttempt.create).not.toHaveBeenCalled();
+  });
+
+  it('does not publish a question before approval', async () => {
+    tx.question.findUnique.mockResolvedValue({ id: 'question1', status: 'SUBMITTED' });
+    await expect(service.reviewQuestion('admin1', 'question1', { status: 'PUBLISHED' })).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.question.update).not.toHaveBeenCalled();
+  });
 
   it('enrolls a student idempotently and records an audit event', async () => {
     prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
