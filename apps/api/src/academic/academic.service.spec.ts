@@ -1,6 +1,7 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AcademicService } from './academic.service';
 import { LearningResourceInputType } from './dto/create-learning-resource.dto';
+import { QuestionReviewDecision } from './dto/review-question.dto';
 
 describe('AcademicService', () => {
   const tx = {
@@ -109,7 +110,7 @@ describe('AcademicService', () => {
 
   it('does not publish a question before approval', async () => {
     tx.question.findUnique.mockResolvedValue({ id: 'question1', status: 'SUBMITTED' });
-    await expect(service.reviewQuestion('admin1', 'question1', { status: 'PUBLISHED' })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.reviewQuestion('admin1', 'question1', { status: QuestionReviewDecision.PUBLISHED })).rejects.toBeInstanceOf(ConflictException);
     expect(tx.question.update).not.toHaveBeenCalled();
   });
 
