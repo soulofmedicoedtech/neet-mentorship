@@ -16,8 +16,6 @@ jobs:
         with:
           node-version: 20
       - run: npm install
-      - name: Generate Prisma client
-        run: npx prisma generate
       - run: npm run build
 
   api-build-and-test:
@@ -32,6 +30,8 @@ jobs:
         with:
           node-version: 20
       - run: npm install
+      - name: Generate Prisma client
+        run: npx prisma generate
       - run: npm run build
       - run: npm test -- --runInBand
       - name: Validate Prisma schema
