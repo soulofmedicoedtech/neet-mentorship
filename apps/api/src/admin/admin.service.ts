@@ -36,6 +36,16 @@ export class AdminService {
       select: { id: true, status: true },
     });
     if (!existing) throw new NotFoundException('Mentorship application not found');
+    const transitions: Record<string, string[]> = {
+      PENDING: ['UNDER_REVIEW', 'APPROVED', 'DECLINED'],
+      UNDER_REVIEW: ['APPROVED', 'DECLINED'],
+      APPROVED: [],
+      DECLINED: [],
+      WITHDRAWN: [],
+    };
+    if (!transitions[existing.status]?.includes(input.status)) {
+      throw new BadRequestException(`Cannot change application from ${existing.status} to ${input.status}`);
+    }
     try {
       return await this.prisma.$transaction(async (tx) => {
         const updated = await tx.mentorshipApplication.update({
