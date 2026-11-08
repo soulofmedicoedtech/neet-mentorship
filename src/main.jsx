@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, Menu, MessageSquare, UserRound, X, LogOut, RefreshCw, LockKeyhole, ShieldCheck, Search, Filter, Clock3, Check, XCircle } from 'lucide-react';
+import { Activity, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, Menu, MessageSquare, UserRound, X, LogOut, RefreshCw, LockKeyhole, ShieldCheck, Search, Filter, Clock3, Check, XCircle, UserCheck, Send } from 'lucide-react';
 import './styles.css';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1').replace(/\/$/, '');
@@ -214,6 +214,7 @@ function AdminPortal({ session, onLogout }) {
   const [busyId, setBusyId] = React.useState('');
   const [error, setError] = React.useState('');
   const [notice, setNotice] = React.useState('');
+  const [mentors, setMentors] = React.useState([]);
   const token = session.accessToken;
   const load = React.useCallback(async () => {
     setError('');
@@ -224,6 +225,17 @@ function AdminPortal({ session, onLogout }) {
     } catch (err) { setError(err.message); }
   }, [filter, token]);
   React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { api('/admin/mentorship-applications/mentors', { token }).then(setMentors).catch(err => setError(err.message)); }, [token]);
+  async function assignMentor(id, mentorUserId) {
+    if (!mentorUserId) return;
+    setBusyId(id); setError(''); setNotice('');
+    try {
+      const updated = await api(`/admin/mentorship-applications/${id}/assignment`, { token, method:'PATCH', body:JSON.stringify({ mentorUserId }) });
+      setItems(rows => rows.map(row => row.id === id ? { ...row, assignedMentor: updated.assignedMentor, assignedMentorId: updated.assignedMentorId } : row));
+      setNotice(`Mentor assigned to application ${id.slice(0,8)}.`);
+    } catch (err) { setError(err.message); }
+    finally { setBusyId(''); }
+  }
   async function updateStatus(id, status) {
     setBusyId(id); setError(''); setNotice('');
     try {
@@ -244,8 +256,44 @@ function AdminPortal({ session, onLogout }) {
       {error && <div className="errorBox">{error}</div>}{notice && <div className="notice"><CheckCircle2 size={16}/>{notice}</div>}
       <div className="adminStats"><div><span>LOADED APPLICATIONS</span><b>{items.length}</b></div><div><span>PENDING REVIEW</span><b>{items.filter(x=>x.status==='PENDING').length}</b></div><div><span>APPROVED</span><b>{items.filter(x=>x.status==='APPROVED').length}</b></div></div>
       <section className="adminTablePanel"><div className="adminToolbar"><div className="adminSearch"><Search size={16}/><input placeholder="Search student, college or goal" value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="adminFilter"><Filter size={15}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="ALL">All statuses</option><option>PENDING</option><option>UNDER_REVIEW</option><option>APPROVED</option><option>DECLINED</option><option>WITHDRAWN</option></select></div></div>
-      {filtered.length===0?<div className="adminEmpty"><ClipboardList size={28}/><b>No applications found</b><span>New student applications will appear here.</span></div>:<div className="adminApplicationList">{filtered.map(item=>{const student=item.studentProfile?.user || {};const p=item.studentProfile || {};return <article className="adminApplication" key={item.id}><div className="adminApplicant"><div className="adminAvatar">{(student.displayName || 'S').slice(0,1).toUpperCase()}</div><div><b>{student.displayName || 'Student'}</b><small>{student.email || 'No email'} · {p.professionalYear || 'Year not set'}</small><small>{p.college?.name || 'College not selected'}{p.college?.state? ` · ${p.college.state}`:''}</small></div><span className={`adminStatus status-${item.status.toLowerCase()}`}>{item.status.replace('_',' ')}</span></div><div className="adminGoal"><b>Preparation goal</b><p>{item.goal}</p>{item.challenge && <><b>Current challenge</b><p>{item.challenge}</p></>}{item.preferredContact && <small>Preferred contact: {item.preferredContact}</small>}</div><div className="adminApplicationFooter"><small>Submitted {new Date(item.createdAt).toLocaleString()}</small><div>{item.status==='PENDING' && <button disabled={busyId===item.id} onClick={()=>updateStatus(item.id,'UNDER_REVIEW')}><Clock3 size={14}/> Start review</button>}{item.status!=='APPROVED' && item.status!=='DECLINED' && <button className="approveAction" disabled={busyId===item.id} onClick={()=>updateStatus(item.id,'APPROVED')}><Check size={14}/> Approve</button>}{item.status!=='DECLINED' && item.status!=='APPROVED' && <button className="declineAction" disabled={busyId===item.id} onClick={()=>updateStatus(item.id,'DECLINED')}><XCircle size={14}/> Decline</button>}</div></div></article>})}</div>}
-      </section><p className="adminFootnote">Access is restricted to SUPER_ADMIN, ADMIN and ACADEMIC_ADMIN roles. Mentor assignment and mentor-specific visibility are not enabled yet.</p>
+      {filtered.length===0?<div className="adminEmpty"><ClipboardList size={28}/><b>No applications found</b><span>New student applications will appear here.</span></div>:<div className="adminApplicationList">{filtered.map(item=>{const student=item.studentProfile?.user || {};const p=item.studentProfile || {};return <article className="adminApplication" key={item.id}><div className="adminApplicant"><div className="adminAvatar">{(student.displayName || 'S').slice(0,1).toUpperCase()}</div><div><b>{student.displayName || 'Student'}</b><small>{student.email || 'No email'} · {p.professionalYear || 'Year not set'}</small><small>{p.college?.name || 'College not selected'}{p.college?.state? ` · ${p.college.state}`:''}</small></div><span className={`adminStatus status-${item.status.toLowerCase()}`}>{item.status.replace('_',' ')}</span></div><div className="adminGoal"><b>Preparation goal</b><p>{item.goal}</p>{item.challenge && <><b>Current challenge</b><p>{item.challenge}</p></>}{item.preferredContact && <small>Preferred contact: {item.preferredContact}</small>}{item.mentorReviewNote && <><b>Mentor recommendation</b><p>{item.mentorReviewNote}</p></>}</div><div className="adminAssignment"><UserCheck size={15}/><span>{item.assignedMentor ? `Assigned: ${item.assignedMentor.displayName}` : 'No mentor assigned'}</span><select aria-label="Assign mentor" value={item.assignedMentorId || ''} disabled={busyId===item.id || !['PENDING','UNDER_REVIEW'].includes(item.status)} onChange={e=>assignMentor(item.id,e.target.value)}><option value="">{mentors.length ? 'Assign a mentor…' : 'No eligible mentors'}</option>{mentors.map(m=><option key={m.id} value={m.id}>{m.displayName} · {m.email}</option>)}</select></div><div className="adminApplicationFooter"><small>Submitted {new Date(item.createdAt).toLocaleString()}</small><div>{item.status==='PENDING' && <button disabled={busyId===item.id} onClick={()=>updateStatus(item.id,'UNDER_REVIEW')}><Clock3 size={14}/> Start review</button>}{item.status!=='APPROVED' && item.status!=='DECLINED' && <button className="approveAction" disabled={busyId===item.id} onClick={()=>updateStatus(item.id,'APPROVED')}><Check size={14}/> Approve</button>}{item.status!=='DECLINED' && item.status!=='APPROVED' && <button className="declineAction" disabled={busyId===item.id} onClick={()=>updateStatus(item.id,'DECLINED')}><XCircle size={14}/> Decline</button>}</div></div></article>})}</div>}
+      </section><p className="adminFootnote">Access is restricted to SUPER_ADMIN, ADMIN and ACADEMIC_ADMIN roles. Mentors can view only applications assigned to their own account.</p>
+    </main>
+  </div>;
+}
+
+
+function MentorPortal({ session, onLogout }) {
+  const [items, setItems] = React.useState([]);
+  const [notes, setNotes] = React.useState({});
+  const [busyId, setBusyId] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [notice, setNotice] = React.useState('');
+  const token = session.accessToken;
+  const load = React.useCallback(async () => {
+    setError('');
+    try { const data = await api('/mentors/me/mentorship-applications', { token }); setItems(Array.isArray(data) ? data : []); }
+    catch (err) { setError(err.message); }
+  }, [token]);
+  React.useEffect(() => { load(); }, [load]);
+  async function submitReview(id) {
+    const reviewNote = (notes[id] || '').trim();
+    if (reviewNote.length < 20) { setError('Please enter at least 20 characters for your recommendation.'); return; }
+    setBusyId(id); setError(''); setNotice('');
+    try {
+      const updated = await api(`/mentors/me/mentorship-applications/${id}/review`, { token, method:'PATCH', body:JSON.stringify({ reviewNote }) });
+      setItems(rows => rows.map(row => row.id === id ? { ...row, mentorReviewNote: updated.mentorReviewNote } : row));
+      setNotice('Your recommendation has been securely submitted.');
+    } catch (err) { setError(err.message); }
+    finally { setBusyId(''); }
+  }
+  return <div className="adminShell">
+    <aside className="adminSide"><div className="brand"><span className="brandMark">P</span><span>PRAXIS<span className="accent">-MBBS</span></span></div><div className="adminSideLabel">MENTOR WORKSPACE</div><div className="adminNav active"><UserCheck size={17}/> Assigned students</div><div className="adminSideBottom"><b>{session.user?.name || 'Mentor'}</b><small>FACULTY</small><button onClick={onLogout}><LogOut size={15}/> Sign out</button></div></aside>
+    <main className="adminMain"><header className="adminHeader"><div><span className="eyebrow">MENTOR WORKSPACE</span><h1>My assigned students</h1><p>Only applications assigned to your account are visible here.</p></div><button className="refreshButton" onClick={load}><RefreshCw size={14}/> Refresh</button></header>
+      {error && <div className="errorBox">{error}</div>}{notice && <div className="notice"><CheckCircle2 size={16}/>{notice}</div>}
+      <div className="adminStats"><div><span>ASSIGNED APPLICATIONS</span><b>{items.length}</b></div><div><span>AWAITING REVIEW</span><b>{items.filter(x=>!x.mentorReviewNote).length}</b></div><div><span>RECOMMENDATIONS SUBMITTED</span><b>{items.filter(x=>!!x.mentorReviewNote).length}</b></div></div>
+      <section className="adminTablePanel">{items.length===0?<div className="adminEmpty"><ClipboardList size={28}/><b>No assigned applications</b><span>Applications assigned to you by an administrator will appear here.</span></div>:items.map(item=><article className="adminApplication" key={item.id}><div className="adminApplicant"><div className="adminAvatar">{(item.studentProfile?.user?.displayName || 'S').slice(0,1).toUpperCase()}</div><div><b>{item.studentProfile?.user?.displayName || 'Student'}</b><small>{item.studentProfile?.user?.email || 'No email'} · {item.studentProfile?.professionalYear || 'Year not set'}</small><small>{item.studentProfile?.college?.name || 'College not selected'} · {item.studentProfile?.university || ''}</small></div><span className={`adminStatus status-${item.status.toLowerCase()}`}>{item.status.replace('_',' ')}</span></div><div className="adminGoal"><b>Student preparation goal</b><p>{item.goal}</p>{item.challenge && <><b>Current challenge</b><p>{item.challenge}</p></>}{item.mentorReviewNote && <><b>Your submitted recommendation</b><p>{item.mentorReviewNote}</p></>}</div>{['PENDING','UNDER_REVIEW'].includes(item.status) && <div className="mentorReviewForm"><label>Mentor recommendation / guidance<textarea rows="4" minLength="20" maxLength="2000" placeholder="Write actionable guidance, next steps and preparation recommendations (20–2000 characters)." value={notes[item.id] ?? item.mentorReviewNote ?? ''} onChange={e=>setNotes(v=>({...v,[item.id]:e.target.value}))}/></label><button disabled={busyId===item.id || (notes[item.id] ?? item.mentorReviewNote ?? '').trim().length<20} onClick={()=>submitReview(item.id)}><Send size={14}/> Submit recommendation</button></div>}<div className="adminApplicationFooter"><small>Assigned {item.assignedAt ? new Date(item.assignedAt).toLocaleString() : 'date unavailable'}</small></div></article>)}</section>
+      <p className="adminFootnote">Mentors can submit recommendations but cannot approve, decline, reassign or access unassigned student applications. Final application decisions remain with administrators.</p>
     </main>
   </div>;
 }
@@ -257,6 +305,7 @@ function App() {
   const [open, setOpen] = React.useState(false);
   const [showAuth, setShowAuth] = React.useState(false);
   const programs=[{title:'NEET PG Mentorship',text:'Structured guidance, accountability and a practical preparation roadmap.'},{title:'Personal Study Plan',text:'Build a realistic plan around your college schedule and preparation stage.'},{title:'Progress Tracking',text:'Keep goals, milestones and mentor feedback in one student dashboard.'}];
+  if(portal && (session?.user?.roles || []).includes('FACULTY')) return <MentorPortal session={session} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;
   if(portal && (session?.user?.roles || []).some(role => ['SUPER_ADMIN','ADMIN','ACADEMIC_ADMIN'].includes(role))) return <AdminPortal session={session} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;
   if(portal) return <StudentPortal session={session} onBack={()=>setPortal(false)} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;
   if(showAuth) return <AuthPanel onAuthenticated={result=>{setSession(result);setShowAuth(false);setPortal(true)}} onPreview={()=>{setSession(null);setShowAuth(false);setPortal(true)}}/>;
