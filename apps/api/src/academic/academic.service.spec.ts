@@ -42,7 +42,7 @@ describe('AcademicService', () => {
   });
 
   it('requires a faculty course assignment before creating a lecture', async () => {
-    prisma.course.findUnique.mockResolvedValue({ id: 'course1', subjectId: 'subject1' });
+    prisma.course.findUnique.mockResolvedValue({ id: 'course1', subjectId: 'subject1', active: true });
     prisma.courseFacultyAssignment.findUnique.mockResolvedValue(null);
     await expect(service.createLecture('faculty1', 'course1', { title: 'Cell structure' }, false)).rejects.toBeInstanceOf(NotFoundException);
     expect(tx.lecture.create).not.toHaveBeenCalled();
@@ -54,6 +54,19 @@ describe('AcademicService', () => {
     tx.lecture.create.mockResolvedValue({ id: 'lecture1', title: 'Cell structure', status: 'DRAFT' });
     await expect(service.createLecture('faculty1', 'course1', { title: 'Cell structure' }, false)).resolves.toMatchObject({ id: 'lecture1' });
     expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'ACADEMIC_LECTURE_CREATED' }) }));
+  });
+
+
+  it('rejects lecture creation for inactive courses', async () => {
+    prisma.course.findUnique.mockResolvedValue({ id: 'course1', subjectId: 'subject1', active: false });
+    await expect(service.createLecture('admin1', 'course1', { title: 'Inactive course lecture' }, true)).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.lecture.create).not.toHaveBeenCalled();
+  });
+
+  it('prevents adding resources after a lecture has been submitted', async () => {
+    tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', authorId: 'faculty1', status: 'SUBMITTED' });
+    await expect(service.createLearningResource('faculty1', 'lecture1', { title: 'Notes', type: LearningResourceInputType.PDF, url: 'https://files.example.org/notes.pdf' }, false)).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.learningResource.create).not.toHaveBeenCalled();
   });
 
   it('creates a PDF resource only for the lecture author or privileged editor', async () => {
