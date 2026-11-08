@@ -72,6 +72,7 @@ function StudentPortal({ session, onBack, onLogout }) {
   const [applications, setApplications] = React.useState([]);
   const [curriculum, setCurriculum] = React.useState([]);
   const [learningCourses, setLearningCourses] = React.useState([]);
+  const [enrollments, setEnrollments] = React.useState([]);
   const [lecturesByCourse, setLecturesByCourse] = React.useState({});
   const [expandedCourse, setExpandedCourse] = React.useState('');
   const [curriculumError, setCurriculumError] = React.useState('');
@@ -98,6 +99,12 @@ function StudentPortal({ session, onBack, onLogout }) {
     setCollegeSearch(data.college?.name || '');
   }, [preview, token]);
 
+  const loadEnrollments = React.useCallback(async () => {
+    if (preview) return;
+    const data = await api('/academic/student/me/enrollments', { token });
+    setEnrollments(Array.isArray(data) ? data : []);
+  }, [preview, token]);
+
   const loadApplications = React.useCallback(async () => {
     if (preview) return;
     const data = await api('/students/me/mentorship-applications', { token });
@@ -107,11 +114,11 @@ function StudentPortal({ session, onBack, onLogout }) {
   React.useEffect(() => {
     if (preview) return;
     let active = true;
-    Promise.all([loadProfile(), loadApplications()])
+    Promise.all([loadProfile(), loadApplications(), loadEnrollments()])
       .then(() => { if (active) setNotice('Signed in. Your profile and mentorship records are connected to the PRAXIS API.'); })
       .catch(err => { if (active) setError(err.message); });
     return () => { active = false; };
-  }, [preview, loadProfile, loadApplications]);
+  }, [preview, loadProfile, loadApplications, loadEnrollments]);
 
   async function searchColleges(value) {
     setCollegeSearch(value);
@@ -167,6 +174,24 @@ function StudentPortal({ session, onBack, onLogout }) {
     }).catch(err => { if (active) setCurriculumError(err.message); });
     return () => { active = false; };
   }, [tab]);
+
+  async function enrollCourse(courseId) {
+    setBusy(true); setCurriculumError('');
+    try {
+      await api('/academic/courses/'+courseId+'/enroll', { token, method:'POST' });
+      await loadEnrollments();
+      setNotice('You are now enrolled in this course.');
+    } catch (err) { setCurriculumError(err.message); }
+    finally { setBusy(false); }
+  }
+
+  async function completeLecture(lectureId) {
+    try {
+      await api('/academic/lectures/'+lectureId+'/progress', { token, method:'PATCH', body:JSON.stringify({ completed:true }) });
+      await loadEnrollments();
+      setNotice('Lecture marked as completed.');
+    } catch (err) { setCurriculumError(err.message); }
+  }
 
   async function toggleCourseContent(courseId) {
     if (expandedCourse === courseId) { setExpandedCourse(''); return; }
@@ -225,7 +250,7 @@ function StudentPortal({ session, onBack, onLogout }) {
             {applications.length===0?<p className="emptyState">No mentorship applications yet.</p>:applications.map(item=><div className="applicationItem" key={item.id}><div><b>{item.goal}</b><small>{new Date(item.createdAt).toLocaleDateString()} · {item.status}</small></div><span className="statusPill">{item.status}</span></div>)}
           </div>
         </div>}
-        {tab==='learning' && <div className="formPanel"><span className="eyebrow">ACADEMIC CURRICULUM</span><h1>Your learning space</h1><p>Explore published courses, lecture videos and study resources, alongside the subject-wise curriculum.</p>{curriculumError && <div className="errorBox" role="alert">{curriculumError}</div>}<div className="applicationHistory"><div className="panelTitle"><h2>Available courses</h2><span>{learningCourses.length} courses</span></div>{learningCourses.length===0?<p className="emptyState">No courses are available yet. The academic team will add courses here.</p>:learningCourses.map(course=><article className="publishedCourse" key={course.id}><button className="publishedCourseToggle" onClick={()=>toggleCourseContent(course.id)}><span><b>{course.code} · {course.title}</b><small>{course.subject?.name || 'MBBS subject'}</small></span><span>{expandedCourse===course.id?'Hide lectures':'View lectures'} <ChevronDown size={15}/></span></button>{expandedCourse===course.id && <div className="publishedLectures">{(lecturesByCourse[course.id]||[]).length===0?<p className="emptyState">No published lectures are available in this course yet.</p>:(lecturesByCourse[course.id]||[]).map(lecture=><article className="publishedLecture" key={lecture.id}><div><b>{lecture.title}</b>{lecture.description && <p>{lecture.description}</p>}{lecture.videoUrl && <a href={lecture.videoUrl} target="_blank" rel="noreferrer"><PlayCircle size={14}/> Open lecture video</a>}</div>{lecture.resources?.length>0 && <div className="publishedResources"><b>Study resources</b>{lecture.resources.map(resource=><a key={resource.id} href={resource.url} target="_blank" rel="noreferrer"><FileText size={14}/>{resource.title}</a>)}</div>}</article>)}</div>}</article>)}</div><div className="applicationHistory"><div className="panelTitle"><h2>Subjects and topics</h2><button className="refreshButton" onClick={()=>api('/academic/subjects').then(data=>setCurriculum(Array.isArray(data)?data:[])).catch(err=>setCurriculumError(err.message))}><RefreshCw size={14}/> Refresh</button></div>{curriculum.length===0?<p className="emptyState">No curriculum has been published yet. The academic team will add verified subjects and topics here.</p>:curriculum.map(subject=><details className="academicSubject" key={subject.id}><summary><b>{subject.name}</b><span>{subject.units?.length||0} units</span></summary>{(subject.units||[]).map(unit=><details className="academicUnit" key={unit.id}><summary>{unit.title}<span>{unit.chapters?.length||0} chapters</span></summary>{(unit.chapters||[]).map(chapter=><details className="academicChapter" key={chapter.id}><summary>{chapter.title}<span>{chapter.topics?.length||0} topics</span></summary><ul>{(chapter.topics||[]).map(topic=><li key={topic.id}>{topic.title}</li>)}</ul></details>)}</details>)}</details>)}</div></div>}
+        {tab==='learning' && <div className="formPanel"><span className="eyebrow">ACADEMIC CURRICULUM</span><h1>Your learning space</h1><p>Explore published courses, lecture videos and study resources, alongside the subject-wise curriculum.</p>{curriculumError && <div className="errorBox" role="alert">{curriculumError}</div>}<div className="applicationHistory"><div className="panelTitle"><h2>My enrolled courses</h2><span>{enrollments.length} enrolled</span></div>{preview?<p className="emptyState">Course enrolment is available after signing in to your student account.</p>:enrollments.length===0?<p className="emptyState">You have not enrolled in a course yet. Choose a course below to get started.</p>:enrollments.map(enrollment=>{const lectures=enrollment.course?.lectures||[];const completed=lectures.filter(lecture=>lecture.progress?.[0]?.completedAt).length;return <article className="publishedCourse" key={enrollment.id}><div className="enrolledCourseHeading"><span><b>{enrollment.course.code} · {enrollment.course.title}</b><small>{enrollment.course.subject?.name || 'MBBS subject'}</small></span><span className="courseProgressCount">{completed}/{lectures.length} completed</span></div><div className="courseProgressTrack"><span style={{width:(lectures.length?completed/lectures.length*100:0)+'%'}}/></div>{lectures.length===0?<p className="emptyState">Published lectures will appear here when available.</p>:<div className="publishedLectures">{lectures.map(lecture=>{const done=!!lecture.progress?.[0]?.completedAt;return <article className="publishedLecture" key={lecture.id}><div><b>{lecture.title}</b>{lecture.description&&<p>{lecture.description}</p>}{lecture.videoUrl&&<a href={lecture.videoUrl} target="_blank" rel="noreferrer"><PlayCircle size={14}/> Open lecture video</a>}{lecture.resources?.length>0&&<div className="publishedResources"><b>Study resources</b>{lecture.resources.map(resource=><a key={resource.id} href={resource.url} target="_blank" rel="noreferrer"><FileText size={14}/>{resource.title}</a>)}</div>}</div><button className={done?'completedLectureButton':'completeLectureButton'} disabled={done} onClick={()=>completeLecture(lecture.id)}>{done?'Completed':'Mark complete'}</button></article>})}</div>}</article>})}</div><div className="applicationHistory"><div className="panelTitle"><h2>Explore courses</h2><span>{learningCourses.length} available</span></div>{learningCourses.length===0?<p className="emptyState">No courses are available yet. The academic team will add courses here.</p>:learningCourses.map(course=>{const enrolled=enrollments.some(item=>item.courseId===course.id);return <article className="publishedCourse" key={course.id}><div className="publishedCourseToggle"><span><b>{course.code} · {course.title}</b><small>{course.subject?.name||'MBBS subject'}</small></span>{enrolled?<span className="statusPill">Enrolled</span>:<button className="primary enrollCourseButton" disabled={busy||preview} onClick={()=>enrollCourse(course.id)}>{preview?'Sign in to enrol':'Enrol now'}</button>}</div></article>})}</div><div className="applicationHistory"><div className="panelTitle"><h2>Subjects and topics</h2><button className="refreshButton" onClick={()=>api('/academic/subjects').then(data=>setCurriculum(Array.isArray(data)?data:[])).catch(err=>setCurriculumError(err.message))}><RefreshCw size={14}/> Refresh</button></div>{curriculum.length===0?<p className="emptyState">No curriculum has been published yet. The academic team will add verified subjects and topics here.</p>:curriculum.map(subject=><details className="academicSubject" key={subject.id}><summary><b>{subject.name}</b><span>{subject.units?.length||0} units</span></summary>{(subject.units||[]).map(unit=><details className="academicUnit" key={unit.id}><summary>{unit.title}<span>{unit.chapters?.length||0} chapters</span></summary>{(unit.chapters||[]).map(chapter=><details className="academicChapter" key={chapter.id}><summary>{chapter.title}<span>{chapter.topics?.length||0} topics</span></summary><ul>{(chapter.topics||[]).map(topic=><li key={topic.id}>{topic.title}</li>)}</ul></details>)}</details>)}</details>)}</div></div>}
       </div>
     </section>
   </div>;
