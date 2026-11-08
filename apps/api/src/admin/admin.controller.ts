@@ -3,6 +3,7 @@ import { AuthenticatedRequest, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { ReviewMentorshipApplicationDto } from './dto/review-mentorship-application.dto';
+import { AssignMentorDto } from './dto/assign-mentor.dto';
 import { AdminService } from './admin.service';
 
 @Controller('admin/mentorship-applications')
@@ -14,6 +15,20 @@ export class AdminController {
   @Get()
   list(@Query('status') status?: string) {
     return this.admin.listMentorshipApplications(status);
+  }
+
+  @Get('mentors')
+  listMentors() {
+    return this.admin.listMentors();
+  }
+
+  @Patch(':id/assignment')
+  assignMentor(
+    @Param('id') id: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() body: AssignMentorDto,
+  ) {
+    return this.admin.assignMentor(id, request.user.sub, body.mentorUserId);
   }
 
   @Patch(':id')
