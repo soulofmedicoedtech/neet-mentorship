@@ -42,7 +42,7 @@ describe('AdminService', () => {
       mentorshipApplication: { update: jest.fn().mockResolvedValue(updated) },
       auditEvent: { create: jest.fn().mockResolvedValue({ id: 'audit-1' }) },
     };
-    jest.mocked(prisma.$transaction).mockImplementation(async (callback: never) => (callback as (arg: typeof tx) => Promise<unknown>)(tx) as never);
+    (prisma as unknown as { $transaction: jest.Mock }).$transaction.mockImplementation((callback) => callback(tx));
     await expect(service.reviewMentorshipApplication('app-1', 'admin-1', { status: 'APPROVED' })).resolves.toEqual(updated);
     expect(tx.mentorshipApplication.update).toHaveBeenCalled();
     expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({
