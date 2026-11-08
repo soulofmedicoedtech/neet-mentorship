@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, MentorshipApplicationStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReviewMentorshipApplicationDto } from './dto/review-mentorship-application.dto';
@@ -10,7 +10,7 @@ export class AdminService {
   async listMentorshipApplications(status?: string) {
     const allowed = ['PENDING', 'UNDER_REVIEW', 'APPROVED', 'DECLINED', 'WITHDRAWN'];
     if (status && !allowed.includes(status)) {
-      return [];
+      throw new BadRequestException('Unsupported application status filter');
     }
     return this.prisma.mentorshipApplication.findMany({
       where: status ? { status: status as MentorshipApplicationStatus } : {},
