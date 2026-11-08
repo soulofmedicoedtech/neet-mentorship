@@ -48,31 +48,34 @@ export class AdminService {
   }
 
   async assignMentor(applicationId: string, actorId: string, mentorUserId: string) {
-    const [application, mentor] = await this.prisma.$transaction([
-      this.prisma.mentorshipApplication.findUnique({
+    return this.prisma.$transaction(async (tx) => {
+      const application = await tx.mentorshipApplication.findUnique({
         where: { id: applicationId },
         select: { id: true, status: true, assignedMentorId: true },
-      }),
-      this.prisma.user.findFirst({
+      });
+      if (!application) throw new NotFoundException('Mentorship application not found');
+      const mentor = await tx.user.findFirst({
         where: {
           id: mentorUserId,
           status: 'ACTIVE',
           roles: { some: { role: { key: 'FACULTY' } } },
           facultyProfile: { isNot: null },
         },
-        select: { id: true, displayName: true },
-      }),
-    ]);
-    if (!application) throw new NotFoundException('Mentorship application not found');
-    if (!mentor) throw new BadRequestException('Select an active user with a faculty profile and FACULTY role');
-    if (!['PENDING', 'UNDER_REVIEW'].includes(application.status)) {
-      throw new BadRequestException('Only pending or under-review applications can be assigned');
-    }
+        select: { id: true },
+      });
+      if (!mentor) throw new BadRequestException('Select an active user with a faculty profile and FACULTY role');
+      if (!['PENDING', 'UNDER_REVIEW'].includes(application.status)) {
+        throw new BadRequestException('Only pending or under-review applications can be assigned');
+      }
 
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.mentorshipApplication.update({
-        where: { id: applicationId },
+      const updatedCount = await tx.mentorshipApplication.updateMany({
+        where: { id: applicationId, status: { in: ['PENDING', 'UNDER_REVIEW'] } },
         data: { assignedMentorId: mentor.id, assignedAt: new Date() },
+      });
+      if (!updatedCount.count) throw new BadRequestException('Application status changed; refresh and try again');
+
+      const updated = await tx.mentorshipApplication.findUniqueOrThrow({
+        where: { id: applicationId },
         select: {
           id: true, status: true, assignedMentorId: true, assignedAt: true,
           assignedMentor: { select: { id: true, displayName: true, email: true } },
