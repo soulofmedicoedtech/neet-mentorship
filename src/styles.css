@@ -113,3 +113,22 @@
 .mentorReviewForm button{display:inline-flex;align-items:center;gap:7px;justify-self:start;border:0;border-radius:7px;background:#d71920;color:#fff;padding:9px 12px;font:600 11px 'DM Sans';cursor:pointer}
 .mentorReviewForm button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:600px){.adminAssignment,.mentorReviewForm{margin-left:0;align-items:flex-start;flex-direction:column}.adminAssignment select{max-width:100%;width:100%}}
+
+
+.adminHeaderActions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.academicForms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:24px 0}
+.academicForm{display:flex;flex-direction:column;gap:12px;padding:20px;border:1px solid var(--line,#e5e7eb);border-radius:16px;background:var(--surface,#fff)}
+.academicForm h2,.academicTreeHeading h2{margin:0;font-size:19px}
+.academicForm label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--muted,#5b6472)}
+.academicForm input,.academicForm select,.academicForm textarea{width:100%;border:1px solid var(--line,#d9dee7);border-radius:9px;padding:10px 12px;font:inherit;color:var(--ink,#172033);background:var(--surface,#fff);min-width:0}
+.academicForm button{align-self:flex-start;margin-top:4px}
+.academicTreePanel{padding:20px;border:1px solid var(--line,#e5e7eb);border-radius:16px;background:var(--surface,#fff)}
+.academicTreeHeading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.academicTreeHeading>span,.academicSubject summary span,.academicUnit summary span,.academicChapter summary span{font-size:12px;color:var(--muted,#667085);font-weight:500}
+.academicSubject,.academicUnit,.academicChapter{border-top:1px solid var(--line,#e5e7eb);padding:12px 4px}
+.academicSubject summary,.academicUnit summary,.academicChapter summary{display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer;list-style:none}
+.academicSubject summary::-webkit-details-marker,.academicUnit summary::-webkit-details-marker,.academicChapter summary::-webkit-details-marker{display:none}
+.academicUnit{margin-left:18px}
+.academicChapter{margin-left:18px}
+.academicChapter ul{margin:10px 0 0 20px;padding:0;color:var(--muted,#667085);font-size:13px;display:grid;gap:6px}
+@media(max-width:760px){.academicForms{grid-template-columns:1fr}.adminHeaderActions{width:100%}.adminHeaderActions button{flex:1}.academicTreePanel{padding:14px}}
