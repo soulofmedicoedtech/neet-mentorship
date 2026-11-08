@@ -70,7 +70,7 @@ export class AdminService {
 
       const updatedCount = await tx.mentorshipApplication.updateMany({
         where: { id: applicationId, status: { in: ['PENDING', 'UNDER_REVIEW'] } },
-        data: { assignedMentorId: mentor.id, assignedAt: new Date() },
+        data: { assignedMentorId: mentor.id, assignedAt: new Date(), mentorReviewNote: null },
       });
       if (!updatedCount.count) throw new BadRequestException('Application status changed; refresh and try again');
 
@@ -123,7 +123,7 @@ export class AdminService {
         const updated = await tx.mentorshipApplication.findUniqueOrThrow({
           where: { id: applicationId },
           select: {
-            id: true, goal: true, challenge: true, preferredContact: true, status: true,
+            id: true, goal: true, challenge: true, preferredContact: true, status: true, mentorReviewNote: true,
             assignedMentorId: true, assignedMentor: { select: { id: true, displayName: true, email: true } },
             createdAt: true, updatedAt: true,
             studentProfile: {
