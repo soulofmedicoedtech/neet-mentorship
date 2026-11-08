@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { AuthenticatedRequest, JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -13,6 +13,10 @@ import { CreateLectureDto } from './dto/create-lecture.dto';
 import { CreateLearningResourceDto } from './dto/create-learning-resource.dto';
 import { ReviewContentDto } from './dto/review-content.dto';
 import { UpdateLectureProgressDto } from './dto/update-lecture-progress.dto';
+import { CreateQuestionDto } from './dto/create-question.dto';
+import { ListQuestionsDto } from './dto/list-questions.dto';
+import { SubmitQuestionAttemptDto } from './dto/submit-question-attempt.dto';
+import { ReviewQuestionDto } from './dto/review-question.dto';
 
 @Controller('academic')
 export class AcademicController {
@@ -46,6 +50,51 @@ export class AcademicController {
   }
 
 
+
+
+  @Get('questions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT')
+  listPublishedQuestions(@Query() query: ListQuestionsDto) {
+    return this.academic.listPublishedQuestions(query);
+  }
+
+  @Post('questions/:questionId/attempt')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT')
+  submitQuestionAttempt(@Req() req: AuthenticatedRequest, @Param('questionId') questionId: string, @Body() body: SubmitQuestionAttemptDto) {
+    return this.academic.submitQuestionAttempt(req.user.sub, questionId, body);
+  }
+
+  @Post('questions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'QUESTION_BANK_MANAGER', 'FACULTY', 'CONTENT_MANAGER')
+  createQuestion(@Req() req: AuthenticatedRequest, @Body() body: CreateQuestionDto) {
+    const privileged = (req.user.roles ?? []).some(role => ['SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'QUESTION_BANK_MANAGER', 'CONTENT_MANAGER'].includes(role));
+    return this.academic.createQuestion(req.user.sub, body, privileged);
+  }
+
+  @Post('questions/:questionId/submit')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'QUESTION_BANK_MANAGER', 'FACULTY', 'CONTENT_MANAGER')
+  submitQuestion(@Req() req: AuthenticatedRequest, @Param('questionId') questionId: string) {
+    const privileged = (req.user.roles ?? []).some(role => ['SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'QUESTION_BANK_MANAGER', 'CONTENT_MANAGER'].includes(role));
+    return this.academic.submitQuestion(req.user.sub, questionId, privileged);
+  }
+
+  @Get('question-review/queue')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'QUESTION_BANK_MANAGER')
+  listQuestionReviewQueue() {
+    return this.academic.listQuestionReviewQueue();
+  }
+
+  @Patch('questions/:questionId/review')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'ACADEMIC_ADMIN', 'QUESTION_BANK_MANAGER')
+  reviewQuestion(@Req() req: AuthenticatedRequest, @Param('questionId') questionId: string, @Body() body: ReviewQuestionDto) {
+    return this.academic.reviewQuestion(req.user.sub, questionId, body);
+  }
 
   @Get('student/me/enrollments')
   @UseGuards(JwtAuthGuard, RolesGuard)
