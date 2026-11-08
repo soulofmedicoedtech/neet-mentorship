@@ -37,8 +37,8 @@ export class AcademicService {
   }
 
   async createLecture(actorId: string, courseId: string, input: CreateLectureDto, isPrivileged: boolean) {
-    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, subjectId: true } });
-    if (!course) throw new NotFoundException('Course not found');
+    const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { id: true, subjectId: true, active: true } });
+    if (!course || !course.active) throw new NotFoundException('Active course not found');
     if (!isPrivileged) {
       const assignment = await this.prisma.courseFacultyAssignment.findUnique({ where: { courseId_facultyId: { courseId, facultyId: actorId } }, select: { id: true } });
       if (!assignment) throw new NotFoundException('Course assignment not found for this faculty account');
@@ -57,9 +57,9 @@ export class AcademicService {
   }
 
   async createLearningResource(actorId: string, lectureId: string, input: CreateLearningResourceDto, isPrivileged: boolean) {
-    const lecture = await this.prisma.lecture.findUnique({ where: { id: lectureId }, select: { id: true, authorId: true } });
-    if (!lecture) throw new NotFoundException('Lecture not found');
-    if (!isPrivileged && lecture.authorId !== actorId) throw new NotFoundException('Lecture not found for this faculty account');
+    const lecture = await this.prisma.lecture.findUnique({ where: { id: lectureId }, select: { id: true, authorId: true, status: true } });
+    if (!lecture || (!isPrivileged && lecture.authorId !== actorId)) throw new NotFoundException('Lecture not found');
+    if (!['DRAFT', 'REJECTED'].includes(lecture.status)) throw new ConflictException('Resources can only be added to draft or rejected lectures');
     return this.prisma.$transaction(async (tx) => {
       const resource = await tx.learningResource.create({
         data: { lectureId, authorId: actorId, title: input.title.trim(), type: input.type, url: input.url, description: input.description?.trim(), sortOrder: input.sortOrder ?? 0 },
