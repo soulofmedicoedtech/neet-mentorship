@@ -83,7 +83,7 @@ export class AcademicService {
 
   listContentReviewQueue() {
     return this.prisma.lecture.findMany({
-      where: { status: 'SUBMITTED' },
+      where: { status: { in: ['SUBMITTED', 'APPROVED'] } },
       select: { id: true, title: true, description: true, videoUrl: true, status: true, submittedAt: true, course: { select: { code: true, title: true } }, author: { select: { id: true, displayName: true, email: true } }, resources: { select: { id: true, title: true, type: true, url: true, status: true } } },
       orderBy: { submittedAt: 'asc' },
       take: 100,
