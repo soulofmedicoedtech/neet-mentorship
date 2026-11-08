@@ -104,3 +104,28 @@ Faculty-only:
 - `PATCH /api/v1/mentors/me/mentorship-applications/:id/review` — saves a 20–2,000 character recommendation only when the application is assigned to that mentor and remains open. The update is audit logged.
 
 The mentor cannot browse the global application list, change application decisions, or reassign records. The administrator retains final approval/decline authority. A FACULTY account must have an active User, FACULTY role and FacultyProfile before it can be assigned. Provision faculty accounts only through a separately verified, authorised operator workflow.
+
+
+### Controlled local faculty provisioning
+
+Faculty onboarding/invitation is not yet a public product workflow. For local development only, an authorised database operator may attach the FACULTY role and create the faculty profile after independently verifying the account. Example:
+
+```sql
+INSERT INTO "Role" ("id", "key", "description")
+VALUES ('praxis-faculty-role', 'FACULTY', 'PRAXIS faculty mentor')
+ON CONFLICT ("key") DO NOTHING;
+
+INSERT INTO "UserRole" ("userId", "roleId")
+SELECT u."id", r."id"
+FROM "User" u CROSS JOIN "Role" r
+WHERE u."email" = 'verified-faculty@example.com' AND r."key" = 'FACULTY'
+ON CONFLICT ("userId", "roleId") DO NOTHING;
+
+INSERT INTO "FacultyProfile" ("id", "userId", "qualifications", "specialties")
+SELECT 'faculty-' || u."id", u."id", ARRAY[]::TEXT[], ARRAY[]::TEXT[]
+FROM "User" u
+WHERE u."email" = 'verified-faculty@example.com'
+ON CONFLICT ("userId") DO NOTHING;
+```
+
+Replace the example email only with the independently verified account. The user must be ACTIVE. After provisioning, the faculty member must sign in again to receive a token containing the FACULTY role. Do not expose this SQL as a public endpoint or grant FACULTY based solely on a self-declared profile.
