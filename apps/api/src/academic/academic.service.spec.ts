@@ -49,7 +49,7 @@ describe('AcademicService', () => {
   });
 
   it('creates a lecture and audit record for assigned faculty', async () => {
-    prisma.course.findUnique = jest.fn().mockResolvedValue({ id: 'course1', subjectId: 'subject1' });
+    prisma.course.findUnique.mockResolvedValue({ id: 'course1', subjectId: 'subject1', active: true });
     prisma.courseFacultyAssignment.findUnique.mockResolvedValue({ id: 'assignment1' });
     tx.lecture.create.mockResolvedValue({ id: 'lecture1', title: 'Cell structure', status: 'DRAFT' });
     await expect(service.createLecture('faculty1', 'course1', { title: 'Cell structure' }, false)).resolves.toMatchObject({ id: 'lecture1' });
@@ -72,8 +72,8 @@ describe('AcademicService', () => {
   it('creates a PDF resource only for the lecture author or privileged editor', async () => {
     tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', authorId: 'faculty1', status: 'DRAFT' });
     tx.learningResource.create.mockResolvedValue({ id: 'resource1', type: LearningResourceInputType.PDF });
-    await expect(service.createLearningResource('faculty1', 'lecture1', { title: 'Lecture notes', type: 'PDF', url: 'https://files.example.org/notes.pdf' }, false)).resolves.toMatchObject({ id: 'resource1' });
-    await expect(service.createLearningResource('faculty2', 'lecture1', { title: 'Lecture notes', type: 'PDF', url: 'https://files.example.org/notes.pdf' }, false)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.createLearningResource('faculty1', 'lecture1', { title: 'Lecture notes', type: LearningResourceInputType.PDF, url: 'https://files.example.org/notes.pdf' }, false)).resolves.toMatchObject({ id: 'resource1' });
+    await expect(service.createLearningResource('faculty2', 'lecture1', { title: 'Lecture notes', type: LearningResourceInputType.PDF, url: 'https://files.example.org/notes.pdf' }, false)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('submits a lecture and its draft resources for academic review', async () => {
