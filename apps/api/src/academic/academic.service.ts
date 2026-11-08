@@ -95,7 +95,7 @@ export class AcademicService {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 20;
     const where = { status: 'PUBLISHED' as const, ...(filters.subjectId ? { subjectId: filters.subjectId } : {}), ...(filters.examTrack ? { examTrack: filters.examTrack } : {}), ...(filters.difficulty ? { difficulty: filters.difficulty } : {}) };
-    const [total, items] = await this.prisma.$transaction([
+    const [total, items] = await Promise.all([
       this.prisma.question.count({ where }),
       this.prisma.question.findMany({
         where, skip: (page - 1) * limit, take: limit,
