@@ -134,6 +134,7 @@ model StudentProfile {
   courseEnrollments  CourseEnrollment[]
   lectureProgress    LectureProgress[]
   questionAttempts   QuestionAttempt[]
+  questionBookmarks  QuestionBookmark[]
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([collegeId])
@@ -403,6 +404,7 @@ model Question {
   author          User                      @relation("QuestionAuthor", fields: [authorId], references: [id], onDelete: Restrict)
   options         QuestionOption[]
   attempts        QuestionAttempt[]
+  bookmarks       QuestionBookmark[]
 
   @@index([subjectId, examTrack, status, difficulty])
   @@index([topicId, status])
@@ -434,4 +436,17 @@ model QuestionAttempt {
 
   @@index([studentProfileId, attemptedAt])
   @@index([questionId, attemptedAt])
+}
+
+
+model QuestionBookmark {
+  id               String         @id @default(cuid())
+  studentProfileId String
+  questionId       String
+  createdAt        DateTime       @default(now())
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  question         Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentProfileId, questionId])
+  @@index([studentProfileId, createdAt])
 }
