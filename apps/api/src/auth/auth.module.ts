@@ -11,6 +11,7 @@ if (!jwtSecret || jwtSecret.length < 32) {
 @Module({
   imports: [JwtModule.register({ secret: jwtSecret, signOptions: { expiresIn: '15m' } })],
   controllers: [AuthController],
-  providers: [AuthService],\n  exports: [JwtModule],
+  providers: [AuthService],
+  exports: [JwtModule],
 })
 export class AuthModule {}
