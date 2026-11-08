@@ -14,6 +14,8 @@ Last updated: 2026-11-08
 - [x] Add college catalogue read endpoint and complete initial PostgreSQL schema migration (catalogue data not yet seeded).
 - [ ] Install dependencies and run type-check/build in a local development environment.
 - [x] Start Phase 2 academic infrastructure with a curriculum catalogue and faculty-authorized subject/unit/chapter/topic creation APIs.
+- [x] Add a role-gated curriculum manager UI for creating subject/unit/chapter/topic records.
+- [x] Connect the student Learning tab to the live read-only curriculum catalogue.
 - [ ] Provision local PostgreSQL and validate the complete initial migration.
 - [x] Confirm Phase 1 CI succeeded on commit `536cfd5`; rerun CI for the new Phase 2 commit.
 - [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete permission-based RBAC.
