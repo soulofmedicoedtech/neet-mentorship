@@ -7,10 +7,14 @@ describe('AcademicService', () => {
     unit: { create: jest.fn(), findUnique: jest.fn() },
     chapter: { create: jest.fn(), findUnique: jest.fn() },
     topic: { create: jest.fn() },
+    course: { create: jest.fn(), findUnique: jest.fn() },
+    user: { findFirst: jest.fn() },
+    courseFacultyAssignment: { upsert: jest.fn(), findMany: jest.fn() },
     auditEvent: { create: jest.fn() },
   };
   const prisma = {
     subject: { findMany: jest.fn() },
+    course: { findMany: jest.fn() },
     $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
   };
   let service: AcademicService;
@@ -19,6 +23,41 @@ describe('AcademicService', () => {
     jest.clearAllMocks();
     service = new AcademicService(prisma as never);
     tx.auditEvent.create.mockResolvedValue({});
+  });
+
+
+  it('lists active courses without exposing faculty account details', async () => {
+    prisma.course.findMany.mockResolvedValue([{ id: 'course1', code: 'ANAT-01' }]);
+    await expect(service.listCourses()).resolves.toHaveLength(1);
+    expect(prisma.course.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { active: true } }));
+  });
+
+  it('creates a course under an existing subject and audits it', async () => {
+    tx.subject.findUnique.mockResolvedValue({ id: 's1' });
+    tx.course.create.mockResolvedValue({ id: 'course1', code: 'ANAT-01', subjectId: 's1' });
+    await expect(service.createCourse('admin1', { code: 'ANAT-01', title: 'Anatomy Core', subjectId: 's1' })).resolves.toMatchObject({ id: 'course1' });
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'ACADEMIC_COURSE_CREATED' }) }));
+  });
+
+  it('rejects course creation when the subject does not exist', async () => {
+    tx.subject.findUnique.mockResolvedValue(null);
+    await expect(service.createCourse('admin1', { code: 'ANAT-01', title: 'Anatomy Core', subjectId: 'missing' })).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.course.create).not.toHaveBeenCalled();
+  });
+
+  it('assigns only active, verified faculty accounts and audits the assignment', async () => {
+    tx.course.findUnique.mockResolvedValue({ id: 'course1', code: 'ANAT-01' });
+    tx.user.findFirst.mockResolvedValue({ id: 'faculty1' });
+    tx.courseFacultyAssignment.upsert.mockResolvedValue({ id: 'assignment1', courseId: 'course1', facultyId: 'faculty1' });
+    await expect(service.assignFaculty('admin1', 'course1', 'faculty1')).resolves.toMatchObject({ id: 'assignment1' });
+    expect(tx.user.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: 'ACTIVE' }) }));
+    expect(tx.auditEvent.create).toHaveBeenCalled();
+  });
+
+  it('returns only the authenticated faculty member course assignments', async () => {
+    prisma.courseFacultyAssignment.findMany.mockResolvedValue([{ course: { id: 'course1' } }]);
+    await expect(service.listMyCourses('faculty1')).resolves.toHaveLength(1);
+    expect(prisma.courseFacultyAssignment.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { facultyId: 'faculty1', course: { active: true } } }));
   });
 
   it('returns active curriculum in hierarchy order', async () => {
