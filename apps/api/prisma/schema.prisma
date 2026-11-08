@@ -30,6 +30,22 @@ enum ContentPublicationStatus {
   REJECTED
 }
 
+enum QuestionExamTrack {
+  UNIVERSITY
+  NEET_PG
+  INI_CET
+}
+
+enum QuestionDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionType {
+  SINGLE_BEST_ANSWER
+}
+
 enum LearningResourceType {
   PDF
   EXTERNAL_LINK
@@ -67,6 +83,7 @@ model User {
   courseAssignments CourseFacultyAssignment[]
   authoredLectures Lecture[] @relation("LectureAuthor")
   uploadedLearningResources LearningResource[] @relation("LearningResourceAuthor")
+  authoredQuestions Question[] @relation("QuestionAuthor")
 }
 
 model Role {
@@ -116,6 +133,7 @@ model StudentProfile {
   applications       MentorshipApplication[]
   courseEnrollments  CourseEnrollment[]
   lectureProgress    LectureProgress[]
+  questionAttempts   QuestionAttempt[]
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([collegeId])
@@ -188,6 +206,7 @@ model Subject {
   active      Boolean  @default(true)
   units       Unit[]
   courses     Course[]
+  questions   Question[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -221,6 +240,7 @@ model Topic {
   sortOrder Int     @default(0)
   chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   lectures  Lecture[]
+  questions Question[]
 
   @@index([chapterId, sortOrder])
 }
@@ -355,4 +375,63 @@ model LectureProgress {
   @@unique([studentProfileId, lectureId])
   @@index([studentProfileId, updatedAt])
   @@index([lectureId])
+}
+
+
+model Question {
+  id              String                    @id @default(cuid())
+  subjectId       String
+  topicId         String?
+  authorId        String
+  examTrack       QuestionExamTrack
+  type            QuestionType              @default(SINGLE_BEST_ANSWER)
+  difficulty      QuestionDifficulty        @default(MEDIUM)
+  questionText    String
+  explanation     String?
+  yearAsked       Int?
+  marks           Int?
+  sourceReference String?
+  status          ContentPublicationStatus  @default(DRAFT)
+  reviewNote      String?
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
+  publishedAt     DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  subject         Subject                   @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  topic           Topic?                    @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  author          User                      @relation("QuestionAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  options         QuestionOption[]
+  attempts        QuestionAttempt[]
+
+  @@index([subjectId, examTrack, status, difficulty])
+  @@index([topicId, status])
+  @@index([authorId, createdAt])
+}
+
+model QuestionOption {
+  id         String            @id @default(cuid())
+  questionId String
+  text       String
+  sortOrder  Int               @default(0)
+  isCorrect  Boolean           @default(false)
+  question   Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attempts   QuestionAttempt[] @relation("ChosenOption")
+
+  @@index([questionId, sortOrder])
+}
+
+model QuestionAttempt {
+  id               String         @id @default(cuid())
+  studentProfileId String
+  questionId       String
+  selectedOptionId String
+  isCorrect        Boolean
+  attemptedAt      DateTime       @default(now())
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  question         Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption   QuestionOption @relation("ChosenOption", fields: [selectedOptionId], references: [id], onDelete: Restrict)
+
+  @@index([studentProfileId, attemptedAt])
+  @@index([questionId, attemptedAt])
 }
