@@ -347,7 +347,7 @@ function AcademicPortal({ session, onBack, onLogout }) {
       <div className="adminSideBottom"><b>{session.user?.name || 'Academic editor'}</b><small>{roleNames.join(' · ')}</small><button onClick={onBack}><ArrowLeft size={15}/> Back to workspace</button><button onClick={onLogout}><LogOut size={15}/> Sign out</button></div>
     </aside>
     <main className="adminMain">
-      <header className="adminHeader"><div><span className="eyebrow">PHASE 2 · ACADEMIC INFRASTRUCTURE</span><h1>Curriculum manager</h1><p>Build the hierarchy used by courses, lectures, notes, QBank and examinations.</p></div><button className="refreshButton" onClick={load}><RefreshCw size={14}/> Refresh</button></header>
+      <header className="adminHeader"><div><span className="eyebrow">PHASE 2 · ACADEMIC INFRASTRUCTURE</span><h1>Curriculum manager</h1><p>Build the hierarchy used by courses, lectures, notes, QBank and examinations.</p></div><div className="adminHeaderActions"><button className="refreshButton" onClick={onOpenAcademic}><BookOpen size={14}/> Curriculum CMS</button><button className="refreshButton" onClick={load}><RefreshCw size={14}/> Refresh</button></div></header>
       {error && <div className="errorBox" role="alert">{error}</div>}{notice && <div className="notice"><CheckCircle2 size={16}/>{notice}</div>}
       <section className="academicForms">
         <form className="academicForm" onSubmit={e=>{e.preventDefault();create('/academic/subjects',subjectForm,()=>setSubjectForm({code:'',name:'',description:''}));}}>
