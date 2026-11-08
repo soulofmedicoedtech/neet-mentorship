@@ -22,6 +22,7 @@ Last updated: 2026-11-08
 - [x] Add lecture/video metadata, PDF/external-link resource records and a draft → submitted → approved/rejected → published review workflow.
 - [x] Add faculty lecture drafting/submission UI, academic-admin review/publish controls, and a student read-only published course/lecture/resource view.
 - [ ] Integrate secure binary uploads/object storage, signed delivery URLs and malware scanning.
+- [x] Add a moderated single-best-answer MCQ question bank with subject/topic mapping, exam-track and difficulty filters, student attempts, post-submission feedback and a question-bank review/publish workflow.
 - [x] Add student self-enrolment in active courses, student-scoped published learning access, lecture completion records and course completion tracking.
 - [ ] Provision local PostgreSQL and validate the complete initial migration.
 - [x] Confirm student enrolment/progress CI passed on commit `924b365`: web build, Prisma Client generation, API build, all API unit tests and Prisma schema validation.
@@ -51,7 +52,7 @@ Last updated: 2026-11-08
 - Student authentication must not be exposed publicly until the remaining security controls, migrations, HTTPS, monitoring and security review are complete.
 
 ## Pending phases
-Faculty onboarding and workload reporting → secure file storage and signed delivery → QBank → examination engine → video streaming → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
+Faculty onboarding and workload reporting → secure file storage and signed delivery → expanded question types and exam analytics → examination engine → video streaming → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
 
 ## Release rule
 A feature is complete only after implementation and tests. External services, paid infrastructure, production releases and irreversible operations require owner approval.
