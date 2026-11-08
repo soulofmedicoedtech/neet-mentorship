@@ -30,6 +30,69 @@ export class AdminService {
     });
   }
 
+  async listMentors() {
+    return this.prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+        roles: { some: { role: { key: 'FACULTY' } } },
+        facultyProfile: { isNot: null },
+      },
+      select: {
+        id: true, displayName: true, email: true,
+        facultyProfile: { select: { qualifications: true, specialties: true } },
+      },
+      orderBy: { displayName: 'asc' },
+      take: 200,
+    });
+  }
+
+  async assignMentor(applicationId: string, actorId: string, mentorUserId: string) {
+    const [application, mentor] = await this.prisma.$transaction([
+      this.prisma.mentorshipApplication.findUnique({
+        where: { id: applicationId },
+        select: { id: true, status: true, assignedMentorId: true },
+      }),
+      this.prisma.user.findFirst({
+        where: {
+          id: mentorUserId,
+          status: 'ACTIVE',
+          roles: { some: { role: { key: 'FACULTY' } } },
+          facultyProfile: { isNot: null },
+        },
+        select: { id: true, displayName: true },
+      }),
+    ]);
+    if (!application) throw new NotFoundException('Mentorship application not found');
+    if (!mentor) throw new BadRequestException('Select an active user with a faculty profile and FACULTY role');
+    if (!['PENDING', 'UNDER_REVIEW'].includes(application.status)) {
+      throw new BadRequestException('Only pending or under-review applications can be assigned');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.mentorshipApplication.update({
+        where: { id: applicationId },
+        data: { assignedMentorId: mentor.id, assignedAt: new Date() },
+        select: {
+          id: true, status: true, assignedMentorId: true, assignedAt: true,
+          assignedMentor: { select: { id: true, displayName: true, email: true } },
+        },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorId,
+          action: 'MENTORSHIP_MENTOR_ASSIGNED',
+          resource: 'MentorshipApplication',
+          resourceId: applicationId,
+          metadata: {
+            previousMentorId: application.assignedMentorId,
+            newMentorId: mentor.id,
+          } as Prisma.InputJsonValue,
+        },
+      });
+      return updated;
+    });
+  }
+
   async reviewMentorshipApplication(applicationId: string, actorId: string, input: ReviewMentorshipApplicationDto) {
     const existing = await this.prisma.mentorshipApplication.findUnique({
       where: { id: applicationId },
