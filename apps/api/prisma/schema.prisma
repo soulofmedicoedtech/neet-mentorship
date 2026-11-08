@@ -51,6 +51,7 @@ model User {
   sessions       DeviceSession[]
   auditEvents    AuditEvent[]    @relation("AuditActor")
   assignedApplications MentorshipApplication[] @relation("AssignedMentor")
+  courseAssignments CourseFacultyAssignment[]
 }
 
 model Role {
@@ -169,6 +170,7 @@ model Subject {
   sortOrder   Int      @default(0)
   active      Boolean  @default(true)
   units       Unit[]
+  courses     Course[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -218,4 +220,33 @@ model AuditEvent {
 
   @@index([actorId, createdAt])
   @@index([resource, resourceId])
+}
+
+
+model Course {
+  id          String                   @id @default(cuid())
+  code        String                   @unique
+  title       String
+  description String?
+  subjectId   String
+  active      Boolean                  @default(true)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  subject     Subject                  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  faculty     CourseFacultyAssignment[]
+
+  @@index([subjectId, active])
+}
+
+model CourseFacultyAssignment {
+  id         String   @id @default(cuid())
+  courseId   String
+  facultyId  String
+  assignedBy String
+  createdAt  DateTime @default(now())
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  faculty    User     @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, facultyId])
+  @@index([facultyId, createdAt])
 }
