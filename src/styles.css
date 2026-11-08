@@ -104,3 +104,12 @@
 .adminFootnote{font-size:10px;line-height:1.6;color:#999;margin-top:15px}
 @media(max-width:850px){.adminShell{grid-template-columns:1fr}.adminSide{min-height:auto;padding:17px;display:grid;grid-template-columns:1fr;gap:16px}.adminSide .brand{padding:0}.adminSideLabel{display:none}.adminSideBottom{margin:0;padding:12px 5px 0}.adminMain{padding:25px 5%}}
 @media(max-width:600px){.adminHeader{align-items:flex-start;flex-direction:column}.adminHeader h1{font-size:27px}.adminStats{grid-template-columns:1fr}.adminToolbar{align-items:stretch;flex-direction:column}.adminSearch{max-width:none}.adminApplicant{flex-wrap:wrap}.adminStatus{margin-left:49px}.adminGoal,.adminApplicationFooter{padding-left:0}.adminApplicationFooter{align-items:flex-start;flex-direction:column}}
+
+.adminAssignment{display:flex;align-items:center;gap:9px;margin:0 0 15px 49px;color:#777;font-size:11px}
+.adminAssignment select{max-width:270px;border:1px solid #e5e5e2;border-radius:7px;background:#fff;padding:8px;font:11px 'DM Sans';color:#444}
+.mentorReviewForm{margin:0 0 16px 49px;display:grid;gap:10px}
+.mentorReviewForm label{display:grid;gap:7px;font-size:11px;font-weight:700;color:#666}
+.mentorReviewForm textarea{width:100%;max-width:760px;border:1px solid #ddd;border-radius:8px;padding:11px;font:12px/1.6 'DM Sans';resize:vertical;outline-color:#d71920}
+.mentorReviewForm button{display:inline-flex;align-items:center;gap:7px;justify-self:start;border:0;border-radius:7px;background:#d71920;color:#fff;padding:9px 12px;font:600 11px 'DM Sans';cursor:pointer}
+.mentorReviewForm button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:600px){.adminAssignment,.mentorReviewForm{margin-left:0;align-items:flex-start;flex-direction:column}.adminAssignment select{max-width:100%;width:100%}}
