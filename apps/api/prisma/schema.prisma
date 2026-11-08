@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum AcademicRole {
+  SUPER_ADMIN
+  ADMIN
+  ACADEMIC_ADMIN
+  FACULTY
+  CONTENT_MANAGER
+  QUESTION_BANK_MANAGER
+  VIDEO_MANAGER
+  FINANCE_MANAGER
+  SUPPORT_EXECUTIVE
+  MODERATOR
+  STUDENT
+}
+
+model User {
+  id             String          @id @default(cuid())
+  email          String?         @unique
+  phoneE164      String?         @unique
+  passwordHash   String?
+  displayName    String
+  status         UserStatus      @default(PENDING)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  roles          UserRole[]
+  studentProfile StudentProfile?
+  facultyProfile FacultyProfile?
+  sessions       DeviceSession[]
+  auditEvents    AuditEvent[]    @relation("AuditActor")
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  key         AcademicRole      @unique
+  description String?
+  assignments UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  roles       RolePermission[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model StudentProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  professionalYear   String?
+  university         String?
+  targetExaminations String[] @default([])
+  preferredLanguage  String?
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FacultyProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  qualifications String[] @default([])
+  specialties    String[] @default([])
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DeviceSession {
+  id          String    @id @default(cuid())
+  userId      String
+  deviceLabel String?
+  refreshHash String
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  units       Unit[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Unit {
+  id        String    @id @default(cuid())
+  subjectId String
+  title     String
+  sortOrder Int       @default(0)
+  subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  chapters  Chapter[]
+
+  @@index([subjectId, sortOrder])
+}
+
+model Chapter {
+  id        String   @id @default(cuid())
+  unitId    String
+  title     String
+  sortOrder Int      @default(0)
+  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  topics    Topic[]
+
+  @@index([unitId, sortOrder])
+}
+
+model Topic {
+  id        String  @id @default(cuid())
+  chapterId String
+  title     String
+  sortOrder Int     @default(0)
+  chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([chapterId, sortOrder])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ipHash     String?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([resource, resourceId])
+}
