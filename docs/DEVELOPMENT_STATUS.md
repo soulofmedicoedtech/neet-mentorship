@@ -25,7 +25,7 @@ Last updated: 2026-11-08
 - [x] Add a moderated single-best-answer MCQ question bank with subject/topic mapping, exam-track and difficulty filters, student attempts, post-submission feedback and a question-bank review/publish workflow.
 - [x] Add student self-enrolment in active courses, student-scoped published learning access, lecture completion records and course completion tracking.
 - [ ] Provision local PostgreSQL and validate the complete initial migration.
-- [x] Confirm student enrolment/progress CI passed on commit `924b365`: web build, Prisma Client generation, API build, all API unit tests and Prisma schema validation.
+- [x] Confirm QBank and student learning CI passed on commit `bf2280d`: web build, Prisma Client generation, API build, all API unit tests and Prisma schema validation.
 - [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete permission-based RBAC.
 - [x] Add a protected admin/academic-admin mentorship review API with role guard and transactional audit logging.
 - [x] Add a role-aware admin workspace to list, filter, approve, decline and start review of mentorship applications.
