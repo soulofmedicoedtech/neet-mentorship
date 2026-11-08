@@ -34,7 +34,6 @@ describe('AcademicService', () => {
   });
 
   it('rejects a duplicate subject code', async () => {
-    const duplicate = Object.assign(new Error('duplicate'), { code: 'P2002', clientVersion: 'test' });
     const { Prisma } = await import('@prisma/client');
     const known = new Prisma.PrismaClientKnownRequestError('duplicate', { code: 'P2002', clientVersion: 'test' });
     prisma.$transaction.mockRejectedValueOnce(known);
