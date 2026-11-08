@@ -208,7 +208,6 @@ model Chapter {
   sortOrder Int      @default(0)
   unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
   topics    Topic[]
-  lectures  Lecture[]
 
   @@index([unitId, sortOrder])
 }
@@ -219,6 +218,7 @@ model Topic {
   title     String
   sortOrder Int     @default(0)
   chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  lectures  Lecture[]
 
   @@index([chapterId, sortOrder])
 }
