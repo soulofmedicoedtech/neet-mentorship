@@ -1,4 +1,5 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { QuestionExamTrack } from '@prisma/client';
 import { AcademicService } from './academic.service';
 import { LearningResourceInputType } from './dto/create-learning-resource.dto';
 import { QuestionReviewDecision } from './dto/review-question.dto';
@@ -46,7 +47,7 @@ describe('AcademicService', () => {
 
   const validQuestionInput = {
     subjectId: 'subject1',
-    examTrack: 'NEET_PG' as const,
+    examTrack: QuestionExamTrack.NEET_PG,
     questionText: 'Which cell produces insulin?',
     explanation: 'Beta cells of the pancreatic islets produce insulin.',
     options: [
