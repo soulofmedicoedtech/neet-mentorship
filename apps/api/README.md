@@ -13,11 +13,11 @@ cp .env.example .env
 # Set DATABASE_URL and a unique JWT_SECRET (at least 32 characters) in .env
 npm install
 npm run prisma:generate
-npm run prisma:migrate:dev -- --name initial
+npm run prisma:migrate:dev
 npm run start:dev
 ```
 
-Health endpoint: `GET /api/v1/health`.
+Health endpoint: `GET /api/v1/health`. The first complete PostgreSQL migration is in `prisma/migrations`; `prisma migrate dev` applies it to an empty local database.\n\nFor browser development, set `CORS_ORIGINS` to the exact comma-separated frontend origins. The defaults allow only local Vite development/preview origins.
 
 ## Student authentication endpoints
 
