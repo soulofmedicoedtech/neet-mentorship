@@ -183,3 +183,12 @@ The migration `20261108230000_student_learning_progress` must be applied before 
 - `GET /api/v1/academic/question-review/queue` and `PATCH /api/v1/academic/questions/:questionId/review` — question-bank managers/academic administrators review, approve/reject and publish questions.
 
 The migration `20261108233000_question_bank_foundation` must be applied before using these endpoints. Only single-best-answer MCQs are supported in this foundation. No question content is seeded; only questions checked against an authorised source should be entered. This is not an AI-generated question pipeline or an examination engine.
+
+
+### Student question bookmarks
+
+- `GET /api/v1/academic/student/me/question-bookmarks?page=1&limit=20` — paginated bookmarks belonging only to the authenticated student. Only currently published questions are returned, and answer keys/explanations are excluded.
+- `POST /api/v1/academic/questions/:questionId/bookmark` — idempotently bookmark a published question for the authenticated student.
+- `DELETE /api/v1/academic/questions/:questionId/bookmark` — remove the bookmark from the authenticated student's own profile.
+
+Apply migration `20261108234500_question_bookmarks` before enabling these endpoints.
