@@ -33,7 +33,7 @@ export class StudentsService {
     return this.prisma.studentProfile.upsert({
       where: { userId },
       update: input,
-      create: { ...input, user: { connect: { id: userId } } },
+      create: { ...input, userId },
       include: { college: { select: { id: true, name: true, state: true, university: true, collegeType: true } } },
     });
   }
