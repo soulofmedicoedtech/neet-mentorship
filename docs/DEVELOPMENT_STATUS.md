@@ -24,7 +24,7 @@ Last updated: 2026-11-08
 - [ ] Integrate secure binary uploads/object storage, signed delivery URLs and malware scanning.
 - [x] Add student self-enrolment in active courses, student-scoped published learning access, lecture completion records and course completion tracking.
 - [ ] Provision local PostgreSQL and validate the complete initial migration.
-- [x] Confirm latest Phase 2 CI passed on commit `60dfa2d`: web build, Prisma client generation, API build, all API unit tests and Prisma schema validation.
+- [x] Confirm student enrolment/progress CI passed on commit `924b365`: web build, Prisma Client generation, API build, all API unit tests and Prisma schema validation.
 - [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete permission-based RBAC.
 - [x] Add a protected admin/academic-admin mentorship review API with role guard and transactional audit logging.
 - [x] Add a role-aware admin workspace to list, filter, approve, decline and start review of mentorship applications.
