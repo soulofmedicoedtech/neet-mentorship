@@ -132,3 +132,22 @@
 .academicChapter{margin-left:18px}
 .academicChapter ul{margin:10px 0 0 20px;padding:0;color:var(--muted,#667085);font-size:13px;display:grid;gap:6px}
 @media(max-width:760px){.academicForms{grid-template-columns:1fr}.adminHeaderActions{width:100%}.adminHeaderActions button{flex:1}.academicTreePanel{padding:14px}}
+
+
+/* Lecture and learning-resource workspaces */
+.resourceEditor{display:grid;grid-template-columns:1fr 150px;gap:8px;margin-top:12px;max-width:640px}
+.resourceEditor input,.resourceEditor select{min-width:0;border:1px solid var(--line,#d9dee7);border-radius:8px;padding:9px 10px;background:#fff;font:12px 'DM Sans'}
+.resourceEditor button,.applicationActions button{border:0;border-radius:8px;background:#d71920;color:#fff;padding:9px 12px;font:600 11px 'DM Sans';cursor:pointer}
+.resourceEditor button:disabled,.applicationActions button:disabled{opacity:.45;cursor:not-allowed}
+.publishedCourse{border:1px solid var(--line,#e5e7eb);border-radius:12px;margin:10px 0;overflow:hidden}
+.publishedCourseToggle{display:flex;width:100%;justify-content:space-between;align-items:center;gap:14px;padding:14px 16px;border:0;background:var(--surface,#fff);text-align:left;cursor:pointer;color:var(--ink,#172033)}
+.publishedCourseToggle>span:first-child{display:grid;gap:4px}
+.publishedCourseToggle small{color:var(--muted,#667085)}
+.publishedCourseToggle>span:last-child{display:flex;align-items:center;gap:6px;color:#d71920;font-size:12px;font-weight:700;white-space:nowrap}
+.publishedLectures{padding:0 14px 12px;background:var(--surface,#fff)}
+.publishedLecture{display:grid;grid-template-columns:1fr minmax(160px,.5fr);gap:16px;padding:14px 4px;border-top:1px solid var(--line,#e5e7eb)}
+.publishedLecture p{font-size:13px;color:var(--muted,#667085);line-height:1.5}
+.publishedLecture a,.publishedResources a{display:flex;align-items:center;gap:7px;color:#b71920;text-decoration:none;font-size:12px;font-weight:600;margin-top:8px}
+.publishedResources{display:grid;align-content:start;gap:5px;font-size:12px}
+.publishedResources>b{color:var(--muted,#667085)}
+@media(max-width:650px){.resourceEditor{grid-template-columns:1fr}.publishedLecture{grid-template-columns:1fr}.publishedCourseToggle{align-items:flex-start;flex-direction:column}}
