@@ -18,7 +18,7 @@ Last updated: 2026-11-08
 - [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete permission-based RBAC.
 - [x] Add a protected admin/academic-admin mentorship review API with role guard and transactional audit logging.
 - [x] Add a role-aware admin workspace to list, filter, approve, decline and start review of mentorship applications.
-- [ ] Add mentor assignment, mentor-specific application visibility and mentor portal.
+- [x] Add admin-controlled assignment to verified active faculty accounts.\n- [x] Add faculty-only assigned-application inbox and mentor recommendation submission.\n- [ ] Add faculty onboarding/invitation and mentor workload reporting.
 - [ ] Add end-to-end tests for registration, login, profile persistence, college selection, mentorship application and admin review flows.
 
 ## Current student and admin workspaces
@@ -27,7 +27,7 @@ Last updated: 2026-11-08
 - Admin workspace is shown only when the signed-in token includes SUPER_ADMIN, ADMIN or ACADEMIC_ADMIN. It supports application listing, status filtering and review transitions.
 - Admin status changes are written to AuditEvent in the same database transaction as the application update.
 - Privileged roles must be granted by an authorised database operator; there is no public role-elevation endpoint.
-- Mentor assignment, mentor-specific application visibility and a mentor portal are not implemented.
+- Admins can assign eligible active FACULTY users with a FacultyProfile. Faculty see only records assigned to their own user ID and can submit recommendations; they cannot approve/decline or browse other applications.\n- Faculty onboarding/invitation and workload reporting are not implemented.
 - Access tokens remain in memory; refreshing the page signs out. The learning roadmap is informational and not connected to course content.
 
 ## Existing implementation and gaps
@@ -38,7 +38,7 @@ Last updated: 2026-11-08
 - Student authentication must not be exposed publicly until the remaining security controls, migrations, HTTPS, monitoring and security review are complete.
 
 ## Pending phases
-Mentor assignment and mentor portal → academic CMS → QBank → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
+Faculty onboarding and workload reporting → academic CMS → QBank → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
 
 ## Release rule
 A feature is complete only after implementation and tests. External services, paid infrastructure, production releases and irreversible operations require owner approval.
