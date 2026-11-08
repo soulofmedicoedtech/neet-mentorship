@@ -140,3 +140,13 @@ Replace the example email only with the independently verified account. The user
 - `POST /api/v1/academic/chapters/:chapterId/topics` — create a topic under an existing chapter.
 
 All write routes require a bearer token with one of SUPER_ADMIN, ADMIN, ACADEMIC_ADMIN, FACULTY or CONTENT_MANAGER. Parent existence is checked before child creation. Each create operation and its audit event are committed in one database transaction. The current Phase 2 slice includes a role-gated web curriculum manager and a student read-only catalogue view. It is not a complete CMS: editing/archiving, faculty assignment to courses, lecture/document upload, publication review and student enrolment are pending. The catalogue will remain empty until an authorized academic editor creates verified curriculum records.
+
+
+## Courses and faculty assignment (Phase 2 continuation)
+
+- `GET /api/v1/academic/courses` — public read-only list of active courses with their subject identifiers; faculty account details are not exposed.
+- `POST /api/v1/academic/courses` — create a course under an existing subject. Requires SUPER_ADMIN, ADMIN or ACADEMIC_ADMIN.
+- `POST /api/v1/academic/courses/:courseId/faculty` — assign an active user who has both the FACULTY role and a FacultyProfile. Requires SUPER_ADMIN, ADMIN or ACADEMIC_ADMIN.
+- `GET /api/v1/academic/faculty/me/courses` — faculty-only list of courses assigned to the signed-in faculty account.
+
+Course creation, assignment and audit records are transactional. Course codes are unique. Repeating the same faculty assignment is idempotent. The schema migration `20261108210000_course_faculty_assignment` must be applied before using these endpoints. This slice provides course structure and faculty ownership only; lecture/video and note/document records, publication workflow and student enrolment remain pending.
