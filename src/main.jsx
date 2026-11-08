@@ -319,6 +319,9 @@ function AcademicPortal({ session, onBack, onLogout }) {
   const [courseForm, setCourseForm] = React.useState({ code:'', title:'', subjectId:'', description:'' });
   const [mentors, setMentors] = React.useState([]);
   const [courseAssignments, setCourseAssignments] = React.useState({});
+  const [myLectures, setMyLectures] = React.useState([]);
+  const [lectureForm, setLectureForm] = React.useState({ courseId:'', title:'', description:'', videoUrl:'', videoType:'YOUTUBE', durationSec:'' });
+  const [resourceForms, setResourceForms] = React.useState({});
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const [notice, setNotice] = React.useState('');
@@ -341,6 +344,8 @@ function AcademicPortal({ session, onBack, onLogout }) {
       if (isFaculty) {
         const assigned = await api('/academic/faculty/me/courses', { token });
         setFacultyCourses(Array.isArray(assigned) ? assigned : []);
+        const lectures = await api('/academic/faculty/me/lectures', { token });
+        setMyLectures(Array.isArray(lectures) ? lectures : []);
       }
     } catch (err) { setError(err.message); }
   }, [isFaculty, token]);
@@ -348,6 +353,32 @@ function AcademicPortal({ session, onBack, onLogout }) {
   React.useEffect(() => {
     if (isAcademicAdmin) api('/admin/mentorship-applications/mentors', { token }).then(setMentors).catch(err => setError(err.message));
   }, [isAcademicAdmin, token]);
+  async function createLecture(event) {
+    event.preventDefault(); setBusy(true); setError(''); setNotice('');
+    try {
+      const { courseId, durationSec, ...payload } = lectureForm;
+      await api('/academic/courses/'+courseId+'/lectures', { token, method:'POST', body:JSON.stringify({ ...payload, durationSec: durationSec ? Number(durationSec) : undefined }) });
+      setLectureForm(v=>({...v,title:'',description:'',videoUrl:'',durationSec:''}));
+      await loadCourses(); setNotice('Lecture saved as draft. Add notes/resources, then submit it for academic review.');
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+  async function createResource(lectureId) {
+    const form = resourceForms[lectureId] || {};
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api('/academic/lectures/'+lectureId+'/resources', { token, method:'POST', body:JSON.stringify(form) });
+      setResourceForms(v=>({...v,[lectureId]:{ title:'', type:'PDF', url:'', description:'' }}));
+      await loadCourses(); setNotice('Learning resource saved as draft.');
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+  async function submitLecture(lectureId) {
+    setBusy(true); setError(''); setNotice('');
+    try { await api('/academic/lectures/'+lectureId+'/submit', { token, method:'POST' }); await loadCourses(); setNotice('Lecture and draft resources submitted for academic review.'); }
+    catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
   async function createCourse(event) {
     event.preventDefault(); setBusy(true); setError(''); setNotice('');
     try {
@@ -427,6 +458,30 @@ function AcademicPortal({ session, onBack, onLogout }) {
         </form>
         <div className="academicForm"><span className="eyebrow">06 · FACULTY OWNERSHIP</span><h2>Assign faculty</h2>
           {courses.length===0?<p className="emptyState">Create a course before assigning faculty.</p>:courses.map(course=><div className="applicationItem" key={course.id}><div><b>{course.code} · {course.title}</b><small>{course.subject?.name || 'Subject'}</small><select aria-label={'Faculty for '+course.title} value={courseAssignments[course.id] || ''} onChange={e=>setCourseAssignments(v=>({...v,[course.id]:e.target.value}))}><option value="">Select verified faculty</option>{mentors.map(m=><option key={m.id} value={m.id}>{m.displayName} · {m.email}</option>)}</select></div><button type="button" disabled={busy || !courseAssignments[course.id]} onClick={()=>assignCourseFaculty(course.id)}>Assign</button></div>)}
+        </div>
+      </section>}
+      {isFaculty && <section className="academicForms">
+        <form className="academicForm" onSubmit={createLecture}>
+          <span className="eyebrow">LECTURE CONTENT</span><h2>Create lecture</h2>
+          <label>Assigned course<select required value={lectureForm.courseId} onChange={e=>setLectureForm(v=>({...v,courseId:e.target.value}))}><option value="">Select your assigned course</option>{facultyCourses.map(row=><option key={row.course.id} value={row.course.id}>{row.course.code} · {row.course.title}</option>)}</select></label>
+          <label>Lecture title<input required minLength="2" maxLength="180" value={lectureForm.title} onChange={e=>setLectureForm(v=>({...v,title:e.target.value}))}/></label>
+          <label>Description<textarea rows="2" maxLength="2000" value={lectureForm.description} onChange={e=>setLectureForm(v=>({...v,description:e.target.value}))}/></label>
+          <label>Video URL (YouTube or hosted MP4)<input type="url" placeholder="https://" value={lectureForm.videoUrl} onChange={e=>setLectureForm(v=>({...v,videoUrl:e.target.value}))}/></label>
+          <label>Video source<select value={lectureForm.videoType} onChange={e=>setLectureForm(v=>({...v,videoType:e.target.value}))}><option value="YOUTUBE">YouTube</option><option value="MP4">Hosted MP4</option><option value="EXTERNAL">External player URL</option></select></label>
+          <label>Duration (seconds)<input type="number" min="1" max="86400" value={lectureForm.durationSec} onChange={e=>setLectureForm(v=>({...v,durationSec:e.target.value}))}/></label>
+          <button className="primary" disabled={busy || !facultyCourses.length}>Save lecture draft</button>
+        </form>
+        <div className="academicForm"><span className="eyebrow">MY CONTENT</span><h2>Lectures and notes</h2>
+          {myLectures.length===0?<p className="emptyState">No lecture drafts yet. Create a lecture from an assigned course.</p>:myLectures.map(lecture=><article className="applicationItem" key={lecture.id}>
+            <div><b>{lecture.title}</b><small>{lecture.status} · {lecture.videoType || 'No video type'} · {lecture.resources?.length || 0} resources</small>{lecture.reviewNote && <small>Review note: {lecture.reviewNote}</small>}
+            {['DRAFT','REJECTED'].includes(lecture.status) && <div className="resourceEditor">
+              <input placeholder="Notes/PDF title" value={resourceForms[lecture.id]?.title || ''} onChange={e=>setResourceForms(v=>({...v,[lecture.id]:{...(v[lecture.id]||{type:'PDF',url:'',description:''}),title:e.target.value}}))}/>
+              <select value={resourceForms[lecture.id]?.type || 'PDF'} onChange={e=>setResourceForms(v=>({...v,[lecture.id]:{...(v[lecture.id]||{title:'',url:'',description:''}),type:e.target.value}}))}><option value="PDF">PDF notes link</option><option value="EXTERNAL_LINK">External learning link</option></select>
+              <input type="url" placeholder="Secure HTTPS resource URL" value={resourceForms[lecture.id]?.url || ''} onChange={e=>setResourceForms(v=>({...v,[lecture.id]:{...(v[lecture.id]||{title:'',type:'PDF',description:''}),url:e.target.value}}))}/>
+              <button type="button" disabled={busy || !(resourceForms[lecture.id]?.title||'').trim() || !(resourceForms[lecture.id]?.url||'').trim()} onClick={()=>createResource(lecture.id)}>Add resource</button>
+            </div>}</div>
+            <div className="applicationActions">{['DRAFT','REJECTED'].includes(lecture.status) && <button type="button" disabled={busy} onClick={()=>submitLecture(lecture.id)}>Submit for review</button>}</div>
+          </article>)}
         </div>
       </section>}
       {isFaculty && <section className="academicTreePanel"><div className="academicTreeHeading"><div><span className="eyebrow">FACULTY TEACHING</span><h2>My assigned courses</h2></div><button className="refreshButton" onClick={loadCourses}><RefreshCw size={14}/> Refresh</button></div>
