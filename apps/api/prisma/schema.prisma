@@ -94,7 +94,12 @@ model StudentProfile {
   university         String?
   targetExaminations String[] @default([])
   preferredLanguage  String?
+  collegeId          String?
+  college            College? @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  applications       MentorshipApplication[]
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([collegeId])
 }
 
 model College {
