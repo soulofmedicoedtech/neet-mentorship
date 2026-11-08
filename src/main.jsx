@@ -390,6 +390,8 @@ function AcademicPortal({ session, onBack, onLogout }) {
   const [lectureForm, setLectureForm] = React.useState({ courseId:'', title:'', description:'', videoUrl:'', videoType:'YOUTUBE', durationSec:'' });
   const [resourceForms, setResourceForms] = React.useState({});
   const [reviewQueue, setReviewQueue] = React.useState([]);
+  const [questionReviewQueue, setQuestionReviewQueue] = React.useState([]);
+  const [questionForm, setQuestionForm] = React.useState({ subjectId:'', topicId:'', examTrack:'NEET_PG', difficulty:'MEDIUM', questionText:'', explanation:'', yearAsked:'', sourceReference:'', options:['','','',''], correctOptionIndex:'0' });
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const [notice, setNotice] = React.useState('');
@@ -397,6 +399,8 @@ function AcademicPortal({ session, onBack, onLogout }) {
   const roleNames = session.user?.roles || [];
   const isAcademicAdmin = roleNames.some(role => ['SUPER_ADMIN','ADMIN','ACADEMIC_ADMIN'].includes(role));
   const isFaculty = roleNames.includes('FACULTY');
+  const isQuestionManager = roleNames.some(role => ['SUPER_ADMIN','ADMIN','ACADEMIC_ADMIN','QUESTION_BANK_MANAGER'].includes(role));
+  const canAuthorQuestions = isAcademicAdmin || isFaculty || isQuestionManager || roleNames.includes('CONTENT_MANAGER');
   const load = React.useCallback(async () => {
     setError('');
     try {
@@ -427,6 +431,43 @@ function AcademicPortal({ session, onBack, onLogout }) {
     catch (err) { setError(err.message); }
   }, [isAcademicAdmin, token]);
   React.useEffect(() => { loadReviewQueue(); }, [loadReviewQueue]);
+  const loadQuestionReviewQueue = React.useCallback(async () => {
+    if (!isQuestionManager) return;
+    try { const data = await api('/academic/question-review/queue', { token }); setQuestionReviewQueue(Array.isArray(data) ? data : []); }
+    catch (err) { setError(err.message); }
+  }, [isQuestionManager, token]);
+  React.useEffect(() => { loadQuestionReviewQueue(); }, [loadQuestionReviewQueue]);
+  async function createQuestion(event) {
+    event.preventDefault(); setBusy(true); setError(''); setNotice('');
+    try {
+      const payload = {
+        subjectId: questionForm.subjectId,
+        topicId: questionForm.topicId || undefined,
+        examTrack: questionForm.examTrack,
+        difficulty: questionForm.difficulty,
+        questionText: questionForm.questionText,
+        explanation: questionForm.explanation || undefined,
+        yearAsked: questionForm.yearAsked ? Number(questionForm.yearAsked) : undefined,
+        sourceReference: questionForm.sourceReference || undefined,
+        options: questionForm.options.map((text,index)=>({ text, sortOrder:index, isCorrect:index===Number(questionForm.correctOptionIndex) })),
+      };
+      const created = await api('/academic/questions', { token, method:'POST', body:JSON.stringify(payload) });
+      await api('/academic/questions/'+created.id+'/submit', { token, method:'POST' });
+      setQuestionForm({ subjectId:'', topicId:'', examTrack:'NEET_PG', difficulty:'MEDIUM', questionText:'', explanation:'', yearAsked:'', sourceReference:'', options:['','','',''], correctOptionIndex:'0' });
+      await loadQuestionReviewQueue();
+      setNotice('Question saved and submitted for academic review. It will appear in student practice only after approval and publication.');
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+  async function reviewQuestion(questionId,status) {
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api('/academic/questions/'+questionId+'/review', { token, method:'PATCH', body:JSON.stringify({ status }) });
+      await loadQuestionReviewQueue();
+      setNotice(status==='PUBLISHED'?'Question published to the student question bank.':'Question review updated to '+status+'.');
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
   async function reviewContent(lectureId, status) {
     setBusy(true); setError(''); setNotice('');
     try {
@@ -567,6 +608,8 @@ function AcademicPortal({ session, onBack, onLogout }) {
           </article>)}
         </div>
       </section>}
+      {canAuthorQuestions && <section className="academicTreePanel"><div className="academicTreeHeading"><div><span className="eyebrow">QUESTION BANK MANAGEMENT</span><h2>Create verified MCQs</h2></div></div><form className="qbankAuthorForm" onSubmit={createQuestion}><label>Subject<select required value={questionForm.subjectId} onChange={e=>setQuestionForm(v=>({...v,subjectId:e.target.value,topicId:''}))}><option value="">Select subject</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}</select></label><label>Topic (optional)<select value={questionForm.topicId} onChange={e=>setQuestionForm(v=>({...v,topicId:e.target.value}))}><option value="">No topic</option>{subjects.filter(s=>s.id===questionForm.subjectId).flatMap(s=>(s.units||[]).flatMap(u=>(u.chapters||[]).flatMap(ch=>(ch.topics||[]).map(t=><option key={t.id} value={t.id}>{u.title} · {ch.title} · {t.title}</option>))))}</select></label><label>Exam track<select value={questionForm.examTrack} onChange={e=>setQuestionForm(v=>({...v,examTrack:e.target.value}))}><option value="NEET_PG">NEET PG</option><option value="UNIVERSITY">University</option><option value="INI_CET">INI-CET</option></select></label><label>Difficulty<select value={questionForm.difficulty} onChange={e=>setQuestionForm(v=>({...v,difficulty:e.target.value}))}><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select></label><label className="qbankWide">Question<textarea required minLength="5" maxLength="10000" rows="3" value={questionForm.questionText} onChange={e=>setQuestionForm(v=>({...v,questionText:e.target.value}))}/></label>{questionForm.options.map((option,index)=><label key={index}>Option {String.fromCharCode(65+index)}<input required maxLength="1000" value={option} onChange={e=>setQuestionForm(v=>({...v,options:v.options.map((item,i)=>i===index?e.target.value:item)}))}/></label>)}<label>Correct option<select value={questionForm.correctOptionIndex} onChange={e=>setQuestionForm(v=>({...v,correctOptionIndex:e.target.value}))}>{questionForm.options.map((_,index)=><option key={index} value={index}>{String.fromCharCode(65+index)}</option>)}</select></label><label>Year asked (optional)<input type="number" min="1900" max="2100" value={questionForm.yearAsked} onChange={e=>setQuestionForm(v=>({...v,yearAsked:e.target.value}))}/></label><label>Source reference (optional)<input maxLength="500" placeholder="PDF / book / paper reference" value={questionForm.sourceReference} onChange={e=>setQuestionForm(v=>({...v,sourceReference:e.target.value}))}/></label><label className="qbankWide">Explanation<textarea rows="2" maxLength="10000" value={questionForm.explanation} onChange={e=>setQuestionForm(v=>({...v,explanation:e.target.value}))}/></label><p className="qbankAuthorNote">Only enter questions and answers verified from an authorised source. This form submits the draft for review; it is not shown to students until a question-bank reviewer publishes it.</p><button className="primary" disabled={busy||!questionForm.subjectId||questionForm.options.some(x=>!x.trim())}>Submit question for review</button></form></section>}
+      {isQuestionManager && <section className="academicTreePanel"><div className="academicTreeHeading"><div><span className="eyebrow">QUESTION QUALITY CONTROL</span><h2>MCQ review and publishing</h2></div><button className="refreshButton" onClick={loadQuestionReviewQueue}><RefreshCw size={14}/> Refresh queue</button></div>{questionReviewQueue.length===0?<p className="emptyState">No questions are waiting for review or publication.</p>:questionReviewQueue.map(item=><article className="applicationItem" key={item.id}><div><b>{item.questionText}</b><small>{item.subject?.code} · {item.subject?.name} · {item.examTrack} · {item.status}</small>{item.options?.map((option,index)=><small key={option.id}>{String.fromCharCode(65+index)}. {option.text}{option.isCorrect?' · Correct':''}</small>)}</div><div className="applicationActions">{item.status==='SUBMITTED'&&<><button disabled={busy} onClick={()=>reviewQuestion(item.id,'APPROVED')}>Approve</button><button disabled={busy} onClick={()=>reviewQuestion(item.id,'REJECTED')}>Reject</button></>}{item.status==='APPROVED'&&<button disabled={busy} onClick={()=>reviewQuestion(item.id,'PUBLISHED')}>Publish</button>}</div></article>)}</section>}
       {isFaculty && <section className="academicTreePanel"><div className="academicTreeHeading"><div><span className="eyebrow">FACULTY TEACHING</span><h2>My assigned courses</h2></div><button className="refreshButton" onClick={loadCourses}><RefreshCw size={14}/> Refresh</button></div>
         {facultyCourses.length===0?<p className="emptyState">No courses have been assigned to your faculty account yet.</p>:facultyCourses.map(row=><article className="applicationItem" key={row.course.id}><div><b>{row.course.code} · {row.course.title}</b><small>{row.course.subject?.name || 'Subject'}</small></div></article>)}
       </section>}
@@ -593,7 +636,7 @@ function App() {
   if(portal && academicMode) return <AcademicPortal session={session} onBack={()=>setAcademicMode(false)} onLogout={()=>{setSession(null);setPortal(false);setAcademicMode(false);setShowAuth(true)}}/>;
   if(portal && (session?.user?.roles || []).includes('FACULTY')) return <MentorPortal session={session} onOpenAcademic={()=>setAcademicMode(true)} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;
   if(portal && (session?.user?.roles || []).some(role => ['SUPER_ADMIN','ADMIN','ACADEMIC_ADMIN'].includes(role))) return <AdminPortal session={session} onOpenAcademic={()=>setAcademicMode(true)} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;
-  if(portal && (session?.user?.roles || []).includes('CONTENT_MANAGER')) return <AcademicPortal session={session} onBack={()=>setPortal(false)} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;
+  if(portal && (session?.user?.roles || []).some(role => ['CONTENT_MANAGER','QUESTION_BANK_MANAGER'].includes(role))) return <AcademicPortal session={session} onBack={()=>setPortal(false)} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;
   if(portal) return <StudentPortal session={session} onBack={()=>setPortal(false)} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;
   if(showAuth) return <AuthPanel onAuthenticated={result=>{setSession(result);setShowAuth(false);setPortal(true)}} onPreview={()=>{setSession(null);setShowAuth(false);setPortal(true)}}/>;
   return <div className="app">
