@@ -90,7 +90,7 @@ ON CONFLICT ("userId", "roleId") DO NOTHING;
 
 Replace the email only with the verified administrator account. Run this only with direct, authorised database access; never expose this operation as a public API. The admin UI appears after that user signs in again and receives the updated role claim.
 
-Mentor assignment, mentor-specific record visibility, review-note history UI, and mentor endpoints are not yet implemented. Do not grant FACULTY a review role until assignment-based access is enforced.
+The faculty inbox and mentor recommendation endpoints are implemented in the current branch; this section describes the earlier admin-only milestone. Faculty assignment and access are enforced by the later mentor workflow documented below.
 
 
 ## Mentor assignment and faculty workspace
