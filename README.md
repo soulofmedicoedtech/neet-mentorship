@@ -17,7 +17,7 @@ This repository is being developed in verified phases. The existing React + Vite
 
 **Phase 1 — Foundation:** architecture, API service scaffold, student authentication, API-backed student profile and mentorship workflows, initial relational data model and security conventions.
 
-The React student portal supports API registration/sign-in, profile retrieval and updates, college catalogue search, mentorship application submission and application-status history. A separate role-aware admin workspace supports listing, filtering and reviewing mentorship applications. Status changes are written to the audit log. Authentication tokens are held in memory only; refreshing the page signs the user out. The demo preview remains separate and is not sent to the API. The review workspace is currently limited to SUPER_ADMIN, ADMIN and ACADEMIC_ADMIN; mentor assignment and mentor-specific access are not implemented.
+The React student portal supports API registration/sign-in, profile retrieval and updates, college catalogue search, mentorship application submission and application-status history. A role-aware admin workspace supports listing, filtering, reviewing and assigning applications to active faculty mentors. Faculty accounts receive a separate mentor workspace that lists only applications assigned to the signed-in mentor and accepts mentor recommendations. Assignment, decisions and mentor recommendations are audit logged. Authentication tokens are held in memory only; refreshing the page signs the user out. The demo preview remains separate and is not sent to the API. The review workspace is currently limited to SUPER_ADMIN, ADMIN and ACADEMIC_ADMIN; mentor assignment and mentor-specific access are not implemented.
 
 ### Connect the web app to the API
 
