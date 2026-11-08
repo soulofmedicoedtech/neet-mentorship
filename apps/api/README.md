@@ -129,3 +129,14 @@ ON CONFLICT ("userId") DO NOTHING;
 ```
 
 Replace the example email only with the independently verified account. The user must be ACTIVE. After provisioning, the faculty member must sign in again to receive a token containing the FACULTY role. Do not expose this SQL as a public endpoint or grant FACULTY based solely on a self-declared profile.
+
+
+## Phase 2 — academic curriculum foundation
+
+- `GET /api/v1/academic/subjects` — public read-only curriculum tree: active subjects, units, chapters and topics in configured order.
+- `POST /api/v1/academic/subjects` — create a subject (unique uppercase code, name, optional description/order).
+- `POST /api/v1/academic/subjects/:subjectId/units` — create a unit under an existing subject.
+- `POST /api/v1/academic/units/:unitId/chapters` — create a chapter under an existing unit.
+- `POST /api/v1/academic/chapters/:chapterId/topics` — create a topic under an existing chapter.
+
+All write routes require a bearer token with one of SUPER_ADMIN, ADMIN, ACADEMIC_ADMIN, FACULTY or CONTENT_MANAGER. Parent existence is checked before child creation. Each create operation and its audit event are committed in one database transaction. This is the first API slice of Phase 2, not a complete CMS: editing/archiving, faculty assignment to courses, lecture/document upload, publication review and student enrolment are pending. The catalogue will remain empty until an authorized academic editor creates verified curriculum records.
