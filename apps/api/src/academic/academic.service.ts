@@ -18,7 +18,7 @@ export class AcademicService {
 
   listPublishedLectures(courseId: string) {
     return this.prisma.lecture.findMany({
-      where: { courseId, status: 'PUBLISHED' },
+      where: { courseId, status: 'PUBLISHED', course: { active: true } },
       select: {
         id: true, title: true, description: true, videoUrl: true, videoType: true,
         durationSec: true, sortOrder: true, topic: { select: { id: true, title: true } },
