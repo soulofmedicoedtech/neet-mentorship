@@ -19,7 +19,7 @@ export class StudentsService {
   async getProfile(userId: string) {
     const profile = await this.prisma.studentProfile.findUnique({
       where: { userId },
-      include: { college: { select: { id: true, name: true, state: true, university: true, collegeType: true } } },
+      include: {\n        college: { select: { id: true, name: true, state: true, university: true, collegeType: true } },\n        user: { select: { displayName: true, email: true } },\n      },
     });
     if (!profile) throw new NotFoundException('Student profile not found');
     return profile;
