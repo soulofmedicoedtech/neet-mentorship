@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubjectDto } from './dto/create-subject.dto';
@@ -9,12 +9,91 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { CreateLectureDto } from './dto/create-lecture.dto';
 import { CreateLearningResourceDto } from './dto/create-learning-resource.dto';
 import { ReviewContentDto } from './dto/review-content.dto';
+import { UpdateLectureProgressDto } from './dto/update-lecture-progress.dto';
 
 @Injectable()
 export class AcademicService {
   constructor(private readonly prisma: PrismaService) {}
 
 
+
+
+  async enrollStudentInCourse(userId: string, courseId: string) {
+    const profile = await this.prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
+    if (!profile) throw new NotFoundException('Student profile not found');
+    const course = await this.prisma.course.findFirst({ where: { id: courseId, active: true }, select: { id: true } });
+    if (!course) throw new NotFoundException('Active course not found');
+    return this.prisma.$transaction(async (tx) => {
+      const enrollment = await tx.courseEnrollment.upsert({
+        where: { studentProfileId_courseId: { studentProfileId: profile.id, courseId } },
+        create: { studentProfileId: profile.id, courseId },
+        update: {},
+        select: { id: true, courseId: true, enrolledAt: true, completedAt: true },
+      });
+      await tx.auditEvent.create({ data: { actorId: userId, action: 'STUDENT_COURSE_ENROLLED', resource: 'CourseEnrollment', resourceId: enrollment.id, metadata: { courseId } as Prisma.InputJsonValue } });
+      return enrollment;
+    });
+  }
+
+  async listMyEnrollments(userId: string) {
+    const profile = await this.prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
+    if (!profile) throw new NotFoundException('Student profile not found');
+    return this.prisma.courseEnrollment.findMany({
+      where: { studentProfileId: profile.id, course: { active: true } },
+      select: {
+        id: true, courseId: true, enrolledAt: true, completedAt: true,
+        course: { select: {
+          id: true, code: true, title: true, description: true,
+          subject: { select: { id: true, code: true, name: true } },
+          lectures: { where: { status: 'PUBLISHED' }, select: {
+            id: true, title: true, description: true, videoUrl: true, videoType: true, durationSec: true, sortOrder: true,
+            resources: { where: { status: 'PUBLISHED' }, select: { id: true, title: true, type: true, url: true, description: true }, orderBy: { sortOrder: 'asc' } },
+            progress: { where: { studentProfileId: profile.id }, select: { watchedSeconds: true, completedAt: true, lastViewedAt: true } },
+          }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
+        } },
+      },
+      orderBy: { enrolledAt: 'desc' },
+    });
+  }
+
+  async updateStudentLectureProgress(userId: string, lectureId: string, input: UpdateLectureProgressDto) {
+    if (input.watchedSeconds === undefined && input.completed === undefined) throw new ConflictException('Provide watchedSeconds or completed');
+    const profile = await this.prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
+    if (!profile) throw new NotFoundException('Student profile not found');
+    const lecture = await this.prisma.lecture.findFirst({
+      where: { id: lectureId, status: 'PUBLISHED', course: { active: true } },
+      select: { id: true, courseId: true },
+    });
+    if (!lecture) throw new NotFoundException('Published lecture not found');
+    const enrollment = await this.prisma.courseEnrollment.findUnique({
+      where: { studentProfileId_courseId: { studentProfileId: profile.id, courseId: lecture.courseId } },
+      select: { id: true },
+    });
+    if (!enrollment) throw new ForbiddenException('Enroll in this course before recording lecture progress');
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.lectureProgress.findUnique({
+        where: { studentProfileId_lectureId: { studentProfileId: profile.id, lectureId } },
+        select: { id: true, watchedSeconds: true, completedAt: true },
+      });
+      const now = new Date();
+      const watchedSeconds = Math.max(existing?.watchedSeconds ?? 0, input.watchedSeconds ?? 0);
+      const completedAt = input.completed ? (existing?.completedAt ?? now) : existing?.completedAt ?? null;
+      const progress = await tx.lectureProgress.upsert({
+        where: { studentProfileId_lectureId: { studentProfileId: profile.id, lectureId } },
+        create: { studentProfileId: profile.id, lectureId, watchedSeconds, completedAt, lastViewedAt: now },
+        update: { watchedSeconds, completedAt, lastViewedAt: now },
+        select: { id: true, lectureId: true, watchedSeconds: true, completedAt: true, lastViewedAt: true },
+      });
+      const publishedCount = await tx.lecture.count({ where: { courseId: lecture.courseId, status: 'PUBLISHED' } });
+      const completedCount = await tx.lectureProgress.count({
+        where: { studentProfileId: profile.id, completedAt: { not: null }, lecture: { courseId: lecture.courseId, status: 'PUBLISHED' } },
+      });
+      if (publishedCount > 0 && completedCount >= publishedCount) {
+        await tx.courseEnrollment.update({ where: { id: enrollment.id }, data: { completedAt: now } });
+      }
+      return progress;
+    });
+  }
 
   listPublishedLectures(courseId: string) {
     return this.prisma.lecture.findMany({
