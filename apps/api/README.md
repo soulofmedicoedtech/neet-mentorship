@@ -51,3 +51,15 @@ This is an initial development foundation, not a production-ready identity syste
 - `npm run test` — unit tests
 - `npm run prisma:generate` — generate Prisma client
 - `npm run prisma:migrate:dev` — create/apply a local migration
+
+## Student profile and mentorship endpoints
+
+All routes below except the college catalogue require `Authorization: Bearer <accessToken>`.
+
+- `GET /api/v1/colleges?search=<name>` — lists active catalogue entries (maximum 100). The catalogue starts empty; only verified records should be imported by an authorised catalogue-management process.
+- `GET /api/v1/students/me/profile` — retrieves the signed-in student's profile and selected college.
+- `PATCH /api/v1/students/me/profile` — updates professional year, university, target examinations, preferred language and optional college ID. Values are allow-listed/validated.
+- `POST /api/v1/students/me/mentorship-applications` — creates a student-owned application. A goal of at least 20 characters is required. New applications start as `PENDING`.
+- `GET /api/v1/students/me/mentorship-applications` — lists only the signed-in student's applications and current statuses.
+
+The student API does not expose an endpoint to approve, decline or otherwise change application status. A separately authorised mentor/admin workflow is still required. The college list is intentionally not pre-populated with guessed institution names; populate it only from a verified official catalogue.
