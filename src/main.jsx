@@ -338,6 +338,7 @@ function AcademicPortal({ session, onBack, onLogout }) {
   const [myLectures, setMyLectures] = React.useState([]);
   const [lectureForm, setLectureForm] = React.useState({ courseId:'', title:'', description:'', videoUrl:'', videoType:'YOUTUBE', durationSec:'' });
   const [resourceForms, setResourceForms] = React.useState({});
+  const [reviewQueue, setReviewQueue] = React.useState([]);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const [notice, setNotice] = React.useState('');
@@ -369,6 +370,21 @@ function AcademicPortal({ session, onBack, onLogout }) {
   React.useEffect(() => {
     if (isAcademicAdmin) api('/admin/mentorship-applications/mentors', { token }).then(setMentors).catch(err => setError(err.message));
   }, [isAcademicAdmin, token]);
+  const loadReviewQueue = React.useCallback(async () => {
+    if (!isAcademicAdmin) return;
+    try { const data = await api('/academic/content-review/queue', { token }); setReviewQueue(Array.isArray(data) ? data : []); }
+    catch (err) { setError(err.message); }
+  }, [isAcademicAdmin, token]);
+  React.useEffect(() => { loadReviewQueue(); }, [loadReviewQueue]);
+  async function reviewContent(lectureId, status) {
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api('/academic/lectures/'+lectureId+'/review', { token, method:'PATCH', body:JSON.stringify({ status }) });
+      await loadReviewQueue();
+      setNotice(status === 'PUBLISHED' ? 'Lecture published to the student learning space.' : 'Lecture review updated to '+status+'.');
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
   async function createLecture(event) {
     event.preventDefault(); setBusy(true); setError(''); setNotice('');
     try {
@@ -502,6 +518,10 @@ function AcademicPortal({ session, onBack, onLogout }) {
       </section>}
       {isFaculty && <section className="academicTreePanel"><div className="academicTreeHeading"><div><span className="eyebrow">FACULTY TEACHING</span><h2>My assigned courses</h2></div><button className="refreshButton" onClick={loadCourses}><RefreshCw size={14}/> Refresh</button></div>
         {facultyCourses.length===0?<p className="emptyState">No courses have been assigned to your faculty account yet.</p>:facultyCourses.map(row=><article className="applicationItem" key={row.course.id}><div><b>{row.course.code} · {row.course.title}</b><small>{row.course.subject?.name || 'Subject'}</small></div></article>)}
+      </section>}
+      {isAcademicAdmin && <section className="academicTreePanel">
+        <div className="academicTreeHeading"><div><span className="eyebrow">ACADEMIC QUALITY CONTROL</span><h2>Lecture review and publishing</h2></div><button className="refreshButton" onClick={loadReviewQueue}><RefreshCw size={14}/> Refresh queue</button></div>
+        {reviewQueue.length===0?<p className="emptyState">No lectures are waiting for review or publication.</p>:reviewQueue.map(item=><article className="applicationItem" key={item.id}><div><b>{item.title}</b><small>{item.course?.code} · {item.course?.title} · by {item.author?.displayName || 'Faculty'}</small><small>Status: {item.status} · {item.resources?.length || 0} attached resources</small>{item.videoUrl && <a href={item.videoUrl} target="_blank" rel="noreferrer">Review video link</a>}</div><div className="applicationActions">{item.status==='SUBMITTED' && <><button disabled={busy} onClick={()=>reviewContent(item.id,'APPROVED')}>Approve</button><button disabled={busy} onClick={()=>reviewContent(item.id,'REJECTED')}>Reject</button></>}{item.status==='APPROVED' && <button disabled={busy} onClick={()=>reviewContent(item.id,'PUBLISHED')}>Publish to students</button>}</div></article>)}
       </section>}
       <section className="academicTreePanel"><div className="academicTreeHeading"><div><span className="eyebrow">LIVE DATABASE CATALOGUE</span><h2>Curriculum structure</h2></div><span>{subjects.length} subjects</span></div>
         {subjects.length===0?<div className="adminEmpty"><BookOpen size={28}/><b>No curriculum records yet</b><span>Create a subject to start building the academic catalogue.</span></div>:subjects.map(subject=><details className="academicSubject" key={subject.id} open><summary><b>{subject.code} · {subject.name}</b><span>{subject.units?.length || 0} units</span></summary>{(subject.units||[]).map(unit=><details className="academicUnit" key={unit.id}><summary>{unit.title}<span>{unit.chapters?.length || 0} chapters</span></summary>{(unit.chapters||[]).map(chapter=><details className="academicChapter" key={chapter.id}><summary>{chapter.title}<span>{chapter.topics?.length || 0} topics</span></summary><ul>{(chapter.topics||[]).map(topic=><li key={topic.id}>{topic.title}</li>)}</ul></details>)}</details>)}</details>)}
