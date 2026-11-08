@@ -7,7 +7,7 @@ export class CreateLectureDto {
   @IsOptional() @IsString() @Length(1, 2000)
   description?: string;
 
-  @IsOptional() @IsString() @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @IsOptional() @IsString() @IsUrl({ protocols: ['https'], require_protocol: true })
   videoUrl?: string;
 
   @IsOptional() @IsString() @Length(2, 20)
