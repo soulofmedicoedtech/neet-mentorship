@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, Menu, MessageSquare, UserRound, X, LogOut, RefreshCw, LockKeyhole } from 'lucide-react';
+import { Activity, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, Menu, MessageSquare, UserRound, X, LogOut, RefreshCw, LockKeyhole, ShieldCheck, Search, Filter, Clock3, Check, XCircle } from 'lucide-react';
 import './styles.css';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1').replace(/\/$/, '');
@@ -206,6 +206,50 @@ function StudentPortal({ session, onBack, onLogout }) {
   </div>;
 }
 
+
+function AdminPortal({ session, onLogout }) {
+  const [items, setItems] = React.useState([]);
+  const [filter, setFilter] = React.useState('ALL');
+  const [search, setSearch] = React.useState('');
+  const [busyId, setBusyId] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [notice, setNotice] = React.useState('');
+  const token = session.accessToken;
+  const load = React.useCallback(async () => {
+    setError('');
+    try {
+      const query = filter === 'ALL' ? '' : `?status=${encodeURIComponent(filter)}`;
+      const data = await api(`/admin/mentorship-applications${query}`, { token });
+      setItems(Array.isArray(data) ? data : []);
+    } catch (err) { setError(err.message); }
+  }, [filter, token]);
+  React.useEffect(() => { load(); }, [load]);
+  async function updateStatus(id, status) {
+    setBusyId(id); setError(''); setNotice('');
+    try {
+      const updated = await api(`/admin/mentorship-applications/${id}`, { token, method:'PATCH', body:JSON.stringify({ status }) });
+      setItems(rows => rows.map(row => row.id === id ? updated : row));
+      setNotice(`Application status updated to ${status.replace('_',' ')}.`);
+    } catch (err) { setError(err.message); }
+    finally { setBusyId(''); }
+  }
+  const filtered = items.filter(item => {
+    const q = search.trim().toLowerCase();
+    const student = item.studentProfile?.user || {};
+    return !q || [student.displayName,student.email,item.goal,item.studentProfile?.college?.name].some(v => (v || '').toLowerCase().includes(q));
+  });
+  return <div className="adminShell">
+    <aside className="adminSide"><div className="brand"><span className="brandMark">P</span><span>PRAXIS<span className="accent">-MBBS</span></span></div><div className="adminSideLabel">ADMINISTRATION</div><div className="adminNav active"><ShieldCheck size={17}/> Mentorship review</div><div className="adminSideBottom"><b>{session.user?.name || 'Administrator'}</b><small>{(session.user?.roles || []).join(' · ')}</small><button onClick={onLogout}><LogOut size={15}/> Sign out</button></div></aside>
+    <main className="adminMain"><header className="adminHeader"><div><span className="eyebrow">ADMIN WORKSPACE</span><h1>Mentorship applications</h1><p>Review and update student requests. All status changes are audit logged.</p></div><button className="refreshButton" onClick={load}><RefreshCw size={14}/> Refresh</button></header>
+      {error && <div className="errorBox">{error}</div>}{notice && <div className="notice"><CheckCircle2 size={16}/>{notice}</div>}
+      <div className="adminStats"><div><span>LOADED APPLICATIONS</span><b>{items.length}</b></div><div><span>PENDING REVIEW</span><b>{items.filter(x=>x.status==='PENDING').length}</b></div><div><span>APPROVED</span><b>{items.filter(x=>x.status==='APPROVED').length}</b></div></div>
+      <section className="adminTablePanel"><div className="adminToolbar"><div className="adminSearch"><Search size={16}/><input placeholder="Search student, college or goal" value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="adminFilter"><Filter size={15}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="ALL">All statuses</option><option>PENDING</option><option>UNDER_REVIEW</option><option>APPROVED</option><option>DECLINED</option><option>WITHDRAWN</option></select></div></div>
+      {filtered.length===0?<div className="adminEmpty"><ClipboardList size={28}/><b>No applications found</b><span>New student applications will appear here.</span></div>:<div className="adminApplicationList">{filtered.map(item=>{const student=item.studentProfile?.user || {};const p=item.studentProfile || {};return <article className="adminApplication" key={item.id}><div className="adminApplicant"><div className="adminAvatar">{(student.displayName || 'S').slice(0,1).toUpperCase()}</div><div><b>{student.displayName || 'Student'}</b><small>{student.email || 'No email'} · {p.professionalYear || 'Year not set'}</small><small>{p.college?.name || 'College not selected'}{p.college?.state? ` · ${p.college.state}`:''}</small></div><span className={`adminStatus status-${item.status.toLowerCase()}`}>{item.status.replace('_',' ')}</span></div><div className="adminGoal"><b>Preparation goal</b><p>{item.goal}</p>{item.challenge && <><b>Current challenge</b><p>{item.challenge}</p></>}{item.preferredContact && <small>Preferred contact: {item.preferredContact}</small>}</div><div className="adminApplicationFooter"><small>Submitted {new Date(item.createdAt).toLocaleString()}</small><div>{item.status==='PENDING' && <button disabled={busyId===item.id} onClick={()=>updateStatus(item.id,'UNDER_REVIEW')}><Clock3 size={14}/> Start review</button>}{item.status!=='APPROVED' && item.status!=='DECLINED' && <button className="approveAction" disabled={busyId===item.id} onClick={()=>updateStatus(item.id,'APPROVED')}><Check size={14}/> Approve</button>}{item.status!=='DECLINED' && item.status!=='APPROVED' && <button className="declineAction" disabled={busyId===item.id} onClick={()=>updateStatus(item.id,'DECLINED')}><XCircle size={14}/> Decline</button>}</div></div></article>})}</div>}
+      </section><p className="adminFootnote">Access is restricted to SUPER_ADMIN, ADMIN and ACADEMIC_ADMIN roles. Mentor assignment and mentor-specific visibility are not enabled yet.</p>
+    </main>
+  </div>;
+}
+
 function App() {
   const [portal, setPortal] = React.useState(false);
   const [auth, setAuth] = React.useState(false);
@@ -213,7 +257,7 @@ function App() {
   const [open, setOpen] = React.useState(false);
   const [showAuth, setShowAuth] = React.useState(false);
   const programs=[{title:'NEET PG Mentorship',text:'Structured guidance, accountability and a practical preparation roadmap.'},{title:'Personal Study Plan',text:'Build a realistic plan around your college schedule and preparation stage.'},{title:'Progress Tracking',text:'Keep goals, milestones and mentor feedback in one student dashboard.'}];
-  if(portal) return <StudentPortal session={session} onBack={()=>setPortal(false)} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;
+  if(portal && (session?.user?.roles || []).some(role => ['SUPER_ADMIN','ADMIN','ACADEMIC_ADMIN'].includes(role))) return <AdminPortal session={session} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;\n  if(portal) return <StudentPortal session={session} onBack={()=>setPortal(false)} onLogout={()=>{setSession(null);setPortal(false);setShowAuth(true)}}/>;
   if(showAuth) return <AuthPanel onAuthenticated={result=>{setSession(result);setShowAuth(false);setPortal(true)}} onPreview={()=>{setSession(null);setShowAuth(false);setPortal(true)}}/>;
   return <div className="app">
     <header className="nav"><div className="brand"><span className="brandMark">P</span><span>PRAXIS<span className="accent">-MBBS</span></span></div><nav className={open?'navLinks open':'navLinks'}><a href="#programs" onClick={()=>setOpen(false)}>Programs</a><a href="#how" onClick={()=>setOpen(false)}>How it works</a><a href="#about" onClick={()=>setOpen(false)}>About</a><button className="login" onClick={()=>{setShowAuth(true);setOpen(false)}}>Student sign in</button></nav><button className="menu" onClick={()=>setOpen(!open)} aria-label="Menu">{open?<X/>:<Menu/>}</button></header>
