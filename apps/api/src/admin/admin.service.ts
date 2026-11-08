@@ -15,6 +15,7 @@ export class AdminService {
     return this.prisma.mentorshipApplication.findMany({
       where: status ? { status: status as MentorshipApplicationStatus } : {},
       include: {
+        assignedMentor: { select: { id: true, displayName: true, email: true } },
         studentProfile: {
           select: {
             professionalYear: true,
