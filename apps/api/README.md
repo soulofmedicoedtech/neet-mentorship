@@ -65,3 +65,29 @@ All routes below except the college catalogue require `Authorization: Bearer <ac
 - `GET /api/v1/students/me/mentorship-applications` — lists only the signed-in student's applications and current statuses.
 
 The student API does not expose an endpoint to approve, decline or otherwise change application status. A separately authorised mentor/admin workflow is still required. The college list is intentionally not pre-populated with guessed institution names; populate it only from a verified official catalogue.
+
+
+## Protected admin mentorship review
+
+These endpoints require a valid bearer token and one of the `SUPER_ADMIN`, `ADMIN` or `ACADEMIC_ADMIN` roles. The API checks the role claim server-side; hiding the UI is not the security boundary.
+
+- `GET /api/v1/admin/mentorship-applications` — lists up to 200 applications with student profile, college and contact identity details. Optional `?status=PENDING` filter.
+- `PATCH /api/v1/admin/mentorship-applications/:id` — changes status to `UNDER_REVIEW`, `APPROVED` or `DECLINED`. Every change and optional review note is written to `AuditEvent` in the same database transaction.
+
+New public registrations can receive only the STUDENT role. Privileged role assignment is an operator-only database task after independently verifying the account. Example for a controlled local development database:
+
+```sql
+INSERT INTO "Role" ("id", "key", "description")
+VALUES ('praxis-admin-role', 'ADMIN', 'PRAXIS administrator')
+ON CONFLICT ("key") DO NOTHING;
+
+INSERT INTO "UserRole" ("userId", "roleId")
+SELECT u."id", r."id"
+FROM "User" u CROSS JOIN "Role" r
+WHERE u."email" = 'verified-admin@example.com' AND r."key" = 'ADMIN'
+ON CONFLICT ("userId", "roleId") DO NOTHING;
+```
+
+Replace the email only with the verified administrator account. Run this only with direct, authorised database access; never expose this operation as a public API. The admin UI appears after that user signs in again and receives the updated role claim.
+
+Mentor assignment, mentor-specific record visibility, review-note history UI, and mentor endpoints are not yet implemented. Do not grant FACULTY a review role until assignment-based access is enforced.
