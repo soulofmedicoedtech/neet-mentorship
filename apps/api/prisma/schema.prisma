@@ -14,7 +14,7 @@ enum UserStatus {
   DELETED
 }
 
-enum AcademicRole {
+enum MentorshipApplicationStatus {\n  PENDING\n  UNDER_REVIEW\n  APPROVED\n  DECLINED\n  WITHDRAWN\n}\n\nenum AcademicRole {
   SUPER_ADMIN
   ADMIN
   ACADEMIC_ADMIN
@@ -89,7 +89,7 @@ model StudentProfile {
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model FacultyProfile {
+model College {\n  id          String          @id @default(cuid())\n  name        String\n  state       String\n  university  String?\n  collegeType String?\n  active      Boolean         @default(true)\n  students    StudentProfile[]\n  createdAt   DateTime        @default(now())\n  updatedAt   DateTime        @updatedAt\n\n  @@unique([name, state])\n  @@index([state, active])\n  @@index([university, active])\n}\n\nmodel MentorshipApplication {\n  id                String                       @id @default(cuid())\n  studentProfileId  String\n  goal              String\n  challenge         String?\n  preferredContact  String?\n  status            MentorshipApplicationStatus  @default(PENDING)\n  createdAt         DateTime                     @default(now())\n  updatedAt         DateTime                     @updatedAt\n  studentProfile    StudentProfile               @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)\n\n  @@index([studentProfileId, createdAt])\n  @@index([status, createdAt])\n}\n\nmodel FacultyProfile {
   id             String   @id @default(cuid())
   userId         String   @unique
   qualifications String[] @default([])
