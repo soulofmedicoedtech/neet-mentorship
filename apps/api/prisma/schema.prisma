@@ -114,6 +114,8 @@ model StudentProfile {
   collegeId          String?
   college            College? @relation(fields: [collegeId], references: [id], onDelete: SetNull)
   applications       MentorshipApplication[]
+  courseEnrollments  CourseEnrollment[]
+  lectureProgress    LectureProgress[]
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([collegeId])
@@ -251,6 +253,7 @@ model Course {
   subject     Subject                  @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   faculty     CourseFacultyAssignment[]
   lectures    Lecture[]
+  enrollments CourseEnrollment[]
 
   @@index([subjectId, active])
 }
@@ -291,6 +294,7 @@ model Lecture {
   topic       Topic?                    @relation(fields: [topicId], references: [id], onDelete: SetNull)
   author      User                      @relation("LectureAuthor", fields: [authorId], references: [id], onDelete: Restrict)
   resources   LearningResource[]
+  progress    LectureProgress[]
 
   @@index([courseId, status, sortOrder])
   @@index([authorId, createdAt])
@@ -317,4 +321,38 @@ model LearningResource {
 
   @@index([lectureId, status, sortOrder])
   @@index([authorId, createdAt])
+}
+
+
+model CourseEnrollment {
+  id               String         @id @default(cuid())
+  studentProfileId String
+  courseId         String
+  enrolledAt       DateTime       @default(now())
+  completedAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  course           Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentProfileId, courseId])
+  @@index([studentProfileId, enrolledAt])
+  @@index([courseId, enrolledAt])
+}
+
+model LectureProgress {
+  id               String         @id @default(cuid())
+  studentProfileId String
+  lectureId        String
+  watchedSeconds   Int            @default(0)
+  completedAt      DateTime?
+  lastViewedAt     DateTime       @default(now())
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  lecture          Lecture        @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@unique([studentProfileId, lectureId])
+  @@index([studentProfileId, updatedAt])
+  @@index([lectureId])
 }
