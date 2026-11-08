@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, Menu, MessageSquare, UserRound, X, LogOut, RefreshCw, LockKeyhole, ShieldCheck, Search, Filter, Clock3, Check, XCircle, UserCheck, Send, PlayCircle, FileText, ChevronDown } from 'lucide-react';
+import { Activity, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, Menu, MessageSquare, UserRound, X, LogOut, RefreshCw, LockKeyhole, ShieldCheck, Search, Filter, Clock3, Check, XCircle, UserCheck, Send, PlayCircle, FileText, ChevronDown, BrainCircuit } from 'lucide-react';
 import './styles.css';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1').replace(/\/$/, '');
@@ -73,6 +73,11 @@ function StudentPortal({ session, onBack, onLogout }) {
   const [curriculum, setCurriculum] = React.useState([]);
   const [learningCourses, setLearningCourses] = React.useState([]);
   const [enrollments, setEnrollments] = React.useState([]);
+  const [qbankQuestions, setQbankQuestions] = React.useState([]);
+  const [qbankTrack, setQbankTrack] = React.useState('NEET_PG');
+  const [qbankAnswers, setQbankAnswers] = React.useState({});
+  const [qbankResults, setQbankResults] = React.useState({});
+  const [qbankLoading, setQbankLoading] = React.useState(false);
   const [lecturesByCourse, setLecturesByCourse] = React.useState({});
   const [expandedCourse, setExpandedCourse] = React.useState('');
   const [curriculumError, setCurriculumError] = React.useState('');
@@ -175,6 +180,26 @@ function StudentPortal({ session, onBack, onLogout }) {
     return () => { active = false; };
   }, [tab]);
 
+  React.useEffect(() => {
+    if (tab !== 'qbank' || preview) return;
+    let active = true;
+    setQbankLoading(true);
+    api('/academic/questions?examTrack='+encodeURIComponent(qbankTrack)+'&page=1&limit=20', { token })
+      .then(data => { if (active) setQbankQuestions(Array.isArray(data?.items) ? data.items : []); })
+      .catch(err => { if (active) setCurriculumError(err.message); })
+      .finally(() => { if (active) setQbankLoading(false); });
+    return () => { active = false; };
+  }, [tab, preview, token, qbankTrack]);
+
+  async function submitQbankAnswer(questionId) {
+    const selectedOptionId = qbankAnswers[questionId];
+    if (!selectedOptionId) return;
+    try {
+      const result = await api('/academic/questions/'+questionId+'/attempt', { token, method:'POST', body:JSON.stringify({ selectedOptionId }) });
+      setQbankResults(v=>({...v,[questionId]:result}));
+    } catch (err) { setCurriculumError(err.message); }
+  }
+
   async function enrollCourse(courseId) {
     setBusy(true); setCurriculumError('');
     try {
@@ -204,7 +229,7 @@ function StudentPortal({ session, onBack, onLogout }) {
     }
   }
 
-  const nav = [{id:'overview',label:'Overview',icon:LayoutDashboard},{id:'profile',label:'My profile',icon:UserRound},{id:'mentorship',label:'Mentorship',icon:ClipboardList},{id:'learning',label:'Learning',icon:BookOpen}];
+  const nav = [{id:'overview',label:'Overview',icon:LayoutDashboard},{id:'profile',label:'My profile',icon:UserRound},{id:'mentorship',label:'Mentorship',icon:ClipboardList},{id:'learning',label:'Learning',icon:BookOpen},{id:'qbank',label:'Question Bank',icon:BrainCircuit}];
   const targetLabel = previewProfile.target;
   return <div className="portal">
     <aside className="sidebar">
@@ -250,6 +275,7 @@ function StudentPortal({ session, onBack, onLogout }) {
             {applications.length===0?<p className="emptyState">No mentorship applications yet.</p>:applications.map(item=><div className="applicationItem" key={item.id}><div><b>{item.goal}</b><small>{new Date(item.createdAt).toLocaleDateString()} · {item.status}</small></div><span className="statusPill">{item.status}</span></div>)}
           </div>
         </div>}
+        {tab==='qbank' && <div className="formPanel"><span className="eyebrow">PRACTICE AND REVISION</span><h1>Question bank</h1><p>Practice published, academically reviewed single-best-answer questions. Correct answers and explanations appear only after you submit an attempt.</p>{preview?<div className="emptyState">Sign in to access the question bank and save your attempts.</div>:<><div className="qbankToolbar"><label>Exam pathway<select value={qbankTrack} onChange={e=>{setQbankTrack(e.target.value);setQbankAnswers({});setQbankResults({})}}><option value="NEET_PG">NEET PG</option><option value="UNIVERSITY">University</option><option value="INI_CET">INI-CET</option></select></label><span>{qbankQuestions.length} questions loaded</span></div>{qbankLoading?<p className="emptyState">Loading questions…</p>:qbankQuestions.length===0?<p className="emptyState">No published questions are available for this pathway yet. The academic team must add and review verified questions before they appear here.</p>:qbankQuestions.map((question,index)=>{const result=qbankResults[question.id];return <article className="qbankQuestion" key={question.id}><div className="qbankMeta"><span>{question.subject?.code} · {question.subject?.name}</span><span>{question.difficulty}</span>{question.yearAsked&&<span>{question.yearAsked}</span>}</div><h3>{index+1}. {question.questionText}</h3><div className="qbankOptions">{question.options.map(option=><label className={qbankAnswers[question.id]===option.id?'qbankOption selected':'qbankOption'} key={option.id}><input type="radio" name={'question-'+question.id} value={option.id} checked={qbankAnswers[question.id]===option.id} disabled={!!result} onChange={()=>setQbankAnswers(v=>({...v,[question.id]:option.id}))}/><span>{option.text}</span></label>)}</div>{result?<div className={result.isCorrect?'qbankFeedback correct':'qbankFeedback incorrect'}><b>{result.isCorrect?'Correct answer':'Not quite'}</b><p>Correct option: {result.correctOption?.text}</p>{result.explanation&&<p>{result.explanation}</p>}</div>:<button className="primary qbankSubmit" disabled={!qbankAnswers[question.id]} onClick={()=>submitQbankAnswer(question.id)}>Submit answer</button>}</article>})}</>}</div>}
         {tab==='learning' && <div className="formPanel"><span className="eyebrow">ACADEMIC CURRICULUM</span><h1>Your learning space</h1><p>Explore published courses, lecture videos and study resources, alongside the subject-wise curriculum.</p>{curriculumError && <div className="errorBox" role="alert">{curriculumError}</div>}<div className="applicationHistory"><div className="panelTitle"><h2>My enrolled courses</h2><span>{enrollments.length} enrolled</span></div>{preview?<p className="emptyState">Course enrolment is available after signing in to your student account.</p>:enrollments.length===0?<p className="emptyState">You have not enrolled in a course yet. Choose a course below to get started.</p>:enrollments.map(enrollment=>{const lectures=enrollment.course?.lectures||[];const completed=lectures.filter(lecture=>lecture.progress?.[0]?.completedAt).length;return <article className="publishedCourse" key={enrollment.id}><div className="enrolledCourseHeading"><span><b>{enrollment.course.code} · {enrollment.course.title}</b><small>{enrollment.course.subject?.name || 'MBBS subject'}</small></span><span className="courseProgressCount">{completed}/{lectures.length} completed</span></div><div className="courseProgressTrack"><span style={{width:(lectures.length?completed/lectures.length*100:0)+'%'}}/></div>{lectures.length===0?<p className="emptyState">Published lectures will appear here when available.</p>:<div className="publishedLectures">{lectures.map(lecture=>{const done=!!lecture.progress?.[0]?.completedAt;return <article className="publishedLecture" key={lecture.id}><div><b>{lecture.title}</b>{lecture.description&&<p>{lecture.description}</p>}{lecture.videoUrl&&<a href={lecture.videoUrl} target="_blank" rel="noreferrer"><PlayCircle size={14}/> Open lecture video</a>}{lecture.resources?.length>0&&<div className="publishedResources"><b>Study resources</b>{lecture.resources.map(resource=><a key={resource.id} href={resource.url} target="_blank" rel="noreferrer"><FileText size={14}/>{resource.title}</a>)}</div>}</div><button className={done?'completedLectureButton':'completeLectureButton'} disabled={done} onClick={()=>completeLecture(lecture.id)}>{done?'Completed':'Mark complete'}</button></article>})}</div>}</article>})}</div><div className="applicationHistory"><div className="panelTitle"><h2>Explore courses</h2><span>{learningCourses.length} available</span></div>{learningCourses.length===0?<p className="emptyState">No courses are available yet. The academic team will add courses here.</p>:learningCourses.map(course=>{const enrolled=enrollments.some(item=>item.courseId===course.id);return <article className="publishedCourse" key={course.id}><div className="publishedCourseToggle"><span><b>{course.code} · {course.title}</b><small>{course.subject?.name||'MBBS subject'}</small></span>{enrolled?<span className="statusPill">Enrolled</span>:<button className="primary enrollCourseButton" disabled={busy||preview} onClick={()=>enrollCourse(course.id)}>{preview?'Sign in to enrol':'Enrol now'}</button>}</div></article>})}</div><div className="applicationHistory"><div className="panelTitle"><h2>Subjects and topics</h2><button className="refreshButton" onClick={()=>api('/academic/subjects').then(data=>setCurriculum(Array.isArray(data)?data:[])).catch(err=>setCurriculumError(err.message))}><RefreshCw size={14}/> Refresh</button></div>{curriculum.length===0?<p className="emptyState">No curriculum has been published yet. The academic team will add verified subjects and topics here.</p>:curriculum.map(subject=><details className="academicSubject" key={subject.id}><summary><b>{subject.name}</b><span>{subject.units?.length||0} units</span></summary>{(subject.units||[]).map(unit=><details className="academicUnit" key={unit.id}><summary>{unit.title}<span>{unit.chapters?.length||0} chapters</span></summary>{(unit.chapters||[]).map(chapter=><details className="academicChapter" key={chapter.id}><summary>{chapter.title}<span>{chapter.topics?.length||0} topics</span></summary><ul>{(chapter.topics||[]).map(topic=><li key={topic.id}>{topic.title}</li>)}</ul></details>)}</details>)}</details>)}</div></div>}
       </div>
     </section>
