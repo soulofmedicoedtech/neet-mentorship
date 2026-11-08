@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import { QuestionDifficulty, QuestionExamTrack } from '@prisma/client';
 
 export class CreateQuestionOptionDto {
@@ -15,6 +15,7 @@ export class CreateQuestionOptionDto {
   sortOrder?: number;
 
   @IsOptional()
+  @IsBoolean()
   isCorrect?: boolean;
 }
 
