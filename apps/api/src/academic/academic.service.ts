@@ -5,10 +5,66 @@ import { CreateSubjectDto } from './dto/create-subject.dto';
 import { CreateUnitDto } from './dto/create-unit.dto';
 import { CreateChapterDto } from './dto/create-chapter.dto';
 import { CreateTopicDto } from './dto/create-topic.dto';
+import { CreateCourseDto } from './dto/create-course.dto';
 
 @Injectable()
 export class AcademicService {
   constructor(private readonly prisma: PrismaService) {}
+
+
+  listCourses() {
+    return this.prisma.course.findMany({
+      where: { active: true },
+      select: { id: true, code: true, title: true, description: true, subject: { select: { id: true, code: true, name: true } } },
+      orderBy: { title: 'asc' },
+    });
+  }
+
+  listMyCourses(facultyId: string) {
+    return this.prisma.courseFacultyAssignment.findMany({
+      where: { facultyId, course: { active: true } },
+      select: { createdAt: true, course: { select: { id: true, code: true, title: true, description: true, subject: { select: { id: true, code: true, name: true } } } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createCourse(actorId: string, input: CreateCourseDto) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const subject = await tx.subject.findUnique({ where: { id: input.subjectId }, select: { id: true } });
+        if (!subject) throw new NotFoundException('Subject not found');
+        const course = await tx.course.create({
+          data: { code: input.code, title: input.title.trim(), description: input.description?.trim(), subjectId: input.subjectId },
+          select: { id: true, code: true, title: true, description: true, subjectId: true },
+        });
+        await tx.auditEvent.create({ data: { actorId, action: 'ACADEMIC_COURSE_CREATED', resource: 'Course', resourceId: course.id, metadata: { code: course.code, subjectId: course.subjectId } as Prisma.InputJsonValue } });
+        return course;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('A course with this code already exists');
+      throw error;
+    }
+  }
+
+  async assignFaculty(actorId: string, courseId: string, facultyId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const course = await tx.course.findUnique({ where: { id: courseId }, select: { id: true, code: true } });
+      if (!course) throw new NotFoundException('Course not found');
+      const faculty = await tx.user.findFirst({
+        where: { id: facultyId, status: 'ACTIVE', facultyProfile: { isNot: null }, roles: { some: { role: { key: 'FACULTY' } } } },
+        select: { id: true },
+      });
+      if (!faculty) throw new NotFoundException('Active faculty account with a faculty profile not found');
+      const assignment = await tx.courseFacultyAssignment.upsert({
+        where: { courseId_facultyId: { courseId, facultyId } },
+        create: { courseId, facultyId, assignedBy: actorId },
+        update: { assignedBy: actorId },
+        select: { id: true, courseId: true, facultyId: true, createdAt: true },
+      });
+      await tx.auditEvent.create({ data: { actorId, action: 'ACADEMIC_COURSE_FACULTY_ASSIGNED', resource: 'Course', resourceId: courseId, metadata: { facultyId, courseCode: course.code } as Prisma.InputJsonValue } });
+      return assignment;
+    });
+  }
 
   listCurriculum() {
     return this.prisma.subject.findMany({
