@@ -12,6 +12,7 @@ import { AssignCourseFacultyDto } from './dto/assign-course-faculty.dto';
 import { CreateLectureDto } from './dto/create-lecture.dto';
 import { CreateLearningResourceDto } from './dto/create-learning-resource.dto';
 import { ReviewContentDto } from './dto/review-content.dto';
+import { UpdateLectureProgressDto } from './dto/update-lecture-progress.dto';
 
 @Controller('academic')
 export class AcademicController {
@@ -44,6 +45,28 @@ export class AcademicController {
     return this.academic.assignFaculty(req.user.sub, courseId, body.facultyId);
   }
 
+
+
+  @Get('student/me/enrollments')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT')
+  listMyEnrollments(@Req() req: AuthenticatedRequest) {
+    return this.academic.listMyEnrollments(req.user.sub);
+  }
+
+  @Post('courses/:courseId/enroll')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT')
+  enrollInCourse(@Req() req: AuthenticatedRequest, @Param('courseId') courseId: string) {
+    return this.academic.enrollStudentInCourse(req.user.sub, courseId);
+  }
+
+  @Patch('lectures/:lectureId/progress')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT')
+  updateLectureProgress(@Req() req: AuthenticatedRequest, @Param('lectureId') lectureId: string, @Body() body: UpdateLectureProgressDto) {
+    return this.academic.updateStudentLectureProgress(req.user.sub, lectureId, body);
+  }
 
   @Get('courses/:courseId/lectures')
   listPublishedLectures(@Param('courseId') courseId: string) {
