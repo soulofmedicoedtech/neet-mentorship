@@ -70,6 +70,8 @@ function StudentPortal({ session, onBack, onLogout }) {
   const [collegeSearch, setCollegeSearch] = React.useState('');
   const [colleges, setColleges] = React.useState([]);
   const [applications, setApplications] = React.useState([]);
+  const [curriculum, setCurriculum] = React.useState([]);
+  const [curriculumError, setCurriculumError] = React.useState('');
   const [application, setApplication] = React.useState({ goal:'', challenge:'', preferredContact:'' });
   const [busy, setBusy] = React.useState(false);
   const [notice, setNotice] = React.useState('');
@@ -154,6 +156,13 @@ function StudentPortal({ session, onBack, onLogout }) {
     finally { setBusy(false); }
   }
 
+  React.useEffect(() => {
+    if (tab !== 'learning') return;
+    let active = true;
+    api('/academic/subjects').then(data => { if (active) setCurriculum(Array.isArray(data) ? data : []); }).catch(err => { if (active) setCurriculumError(err.message); });
+    return () => { active = false; };
+  }, [tab]);
+
   const nav = [{id:'overview',label:'Overview',icon:LayoutDashboard},{id:'profile',label:'My profile',icon:UserRound},{id:'mentorship',label:'Mentorship',icon:ClipboardList},{id:'learning',label:'Learning',icon:BookOpen}];
   const targetLabel = previewProfile.target;
   return <div className="portal">
@@ -200,7 +209,7 @@ function StudentPortal({ session, onBack, onLogout }) {
             {applications.length===0?<p className="emptyState">No mentorship applications yet.</p>:applications.map(item=><div className="applicationItem" key={item.id}><div><b>{item.goal}</b><small>{new Date(item.createdAt).toLocaleDateString()} · {item.status}</small></div><span className="statusPill">{item.status}</span></div>)}
           </div>
         </div>}
-        {tab==='learning' && <div className="formPanel"><span className="eyebrow">LEARNING ROADMAP</span><h1>Your learning space</h1><p>The student learning modules are planned in phases. No course content is connected in this release yet.</p><div className="roadmap">{[['Video lessons','Recorded lectures and topic-wise learning'],['Notes library','Lecture notes and subject resources'],['Question bank','Practice MCQs with explanations'],['University preparation','Theory questions and exam-focused revision'],['Tests & analytics','Timed tests and performance insights']].map(([title,desc],i)=><div className="roadmapRow" key={title}><span>0{i+1}</span><div><b>{title}</b><small>{desc}</small></div><span className="planned">PLANNED</span></div>)}</div></div>}
+        {tab==='learning' && <div className="formPanel"><span className="eyebrow">ACADEMIC CURRICULUM</span><h1>Your learning space</h1><p>Explore the live PRAXIS subject structure. Lecture videos, notes and practice questions will be attached to these topics in upcoming milestones.</p>{curriculumError && <div className="errorBox" role="alert">{curriculumError}</div>}<div className="applicationHistory"><div className="panelTitle"><h2>Subjects and topics</h2><button className="refreshButton" onClick={()=>api('/academic/subjects').then(data=>setCurriculum(Array.isArray(data)?data:[])).catch(err=>setCurriculumError(err.message))}><RefreshCw size={14}/> Refresh</button></div>{curriculum.length===0?<p className="emptyState">No curriculum has been published yet. The academic team will add verified subjects and topics here.</p>:curriculum.map(subject=><details className="academicSubject" key={subject.id}><summary><b>{subject.name}</b><span>{subject.units?.length||0} units</span></summary>{(subject.units||[]).map(unit=><details className="academicUnit" key={unit.id}><summary>{unit.title}<span>{unit.chapters?.length||0} chapters</span></summary>{(unit.chapters||[]).map(chapter=><details className="academicChapter" key={chapter.id}><summary>{chapter.title}<span>{chapter.topics?.length||0} topics</span></summary><ul>{(chapter.topics||[]).map(topic=><li key={topic.id}>{topic.title}</li>)}</ul></details>)}</details>)}</details>)}</div></div>}
       </div>
     </section>
   </div>;
