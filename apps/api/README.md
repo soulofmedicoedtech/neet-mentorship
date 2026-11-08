@@ -17,7 +17,9 @@ npm run prisma:migrate:dev
 npm run start:dev
 ```
 
-Health endpoint: `GET /api/v1/health`. The first complete PostgreSQL migration is in `prisma/migrations`; `prisma migrate dev` applies it to an empty local database.\n\nFor browser development, set `CORS_ORIGINS` to the exact comma-separated frontend origins. The defaults allow only local Vite development/preview origins.
+Health endpoint: `GET /api/v1/health`. The first complete PostgreSQL migration is in `prisma/migrations`; `prisma migrate dev` applies it to an empty local database.
+
+For browser development, set `CORS_ORIGINS` to the exact comma-separated frontend origins. The defaults allow only local Vite development/preview origins.
 
 ## Student authentication endpoints
 
