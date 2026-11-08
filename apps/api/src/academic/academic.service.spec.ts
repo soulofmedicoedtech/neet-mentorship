@@ -8,14 +8,17 @@ describe('AcademicService', () => {
     chapter: { create: jest.fn(), findUnique: jest.fn() },
     topic: { create: jest.fn() },
     course: { create: jest.fn(), findUnique: jest.fn() },
+    lecture: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    learningResource: { create: jest.fn(), updateMany: jest.fn() },
     user: { findFirst: jest.fn() },
-    courseFacultyAssignment: { upsert: jest.fn(), findMany: jest.fn() },
+    courseFacultyAssignment: { upsert: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
     auditEvent: { create: jest.fn() },
   };
   const prisma = {
     subject: { findMany: jest.fn() },
     course: { findMany: jest.fn() },
     courseFacultyAssignment: { findMany: jest.fn() },
+    lecture: { findMany: jest.fn(), findUnique: jest.fn() },
     $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
   };
   let service: AcademicService;
@@ -26,6 +29,58 @@ describe('AcademicService', () => {
     tx.auditEvent.create.mockResolvedValue({});
   });
 
+
+
+  it('lists only published lectures and published learning resources for students', async () => {
+    prisma.lecture.findMany.mockResolvedValue([]);
+    await service.listPublishedLectures('course1');
+    expect(prisma.lecture.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { courseId: 'course1', status: 'PUBLISHED' },
+      select: expect.objectContaining({ resources: expect.objectContaining({ where: { status: 'PUBLISHED' } }) }),
+    }));
+  });
+
+  it('requires a faculty course assignment before creating a lecture', async () => {
+    prisma.course.findUnique = jest.fn().mockResolvedValue({ id: 'course1', subjectId: 'subject1' });
+    prisma.courseFacultyAssignment.findUnique.mockResolvedValue(null);
+    await expect(service.createLecture('faculty1', 'course1', { title: 'Cell structure' }, false)).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.lecture.create).not.toHaveBeenCalled();
+  });
+
+  it('creates a lecture and audit record for assigned faculty', async () => {
+    prisma.course.findUnique = jest.fn().mockResolvedValue({ id: 'course1', subjectId: 'subject1' });
+    prisma.courseFacultyAssignment.findUnique.mockResolvedValue({ id: 'assignment1' });
+    tx.lecture.create.mockResolvedValue({ id: 'lecture1', title: 'Cell structure', status: 'DRAFT' });
+    await expect(service.createLecture('faculty1', 'course1', { title: 'Cell structure' }, false)).resolves.toMatchObject({ id: 'lecture1' });
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'ACADEMIC_LECTURE_CREATED' }) }));
+  });
+
+  it('creates a PDF resource only for the lecture author or privileged editor', async () => {
+    tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', authorId: 'faculty1' });
+    tx.learningResource.create.mockResolvedValue({ id: 'resource1', type: 'PDF' });
+    await expect(service.createLearningResource('faculty1', 'lecture1', { title: 'Lecture notes', type: 'PDF', url: 'https://files.example.org/notes.pdf' }, false)).resolves.toMatchObject({ id: 'resource1' });
+    await expect(service.createLearningResource('faculty2', 'lecture1', { title: 'Lecture notes', type: 'PDF', url: 'https://files.example.org/notes.pdf' }, false)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('submits a lecture and its draft resources for academic review', async () => {
+    tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', authorId: 'faculty1', status: 'DRAFT' });
+    tx.lecture.update.mockResolvedValue({ id: 'lecture1', status: 'SUBMITTED' });
+    await expect(service.submitLecture('faculty1', 'lecture1', false)).resolves.toMatchObject({ status: 'SUBMITTED' });
+    expect(tx.learningResource.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ lectureId: 'lecture1' }) }));
+  });
+
+  it('prevents publishing a lecture before it has been approved', async () => {
+    tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', status: 'SUBMITTED' });
+    await expect(service.reviewLecture('admin1', 'lecture1', { status: 'PUBLISHED' })).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.lecture.update).not.toHaveBeenCalled();
+  });
+
+  it('approves submitted lectures and audits the reviewer action', async () => {
+    tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', status: 'SUBMITTED' });
+    tx.lecture.update.mockResolvedValue({ id: 'lecture1', status: 'APPROVED' });
+    await expect(service.reviewLecture('admin1', 'lecture1', { status: 'APPROVED' })).resolves.toMatchObject({ status: 'APPROVED' });
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'ACADEMIC_LECTURE_REVIEWED' }) }));
+  });
 
   it('lists active courses without exposing faculty account details', async () => {
     prisma.course.findMany.mockResolvedValue([{ id: 'course1', code: 'ANAT-01' }]);
