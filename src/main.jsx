@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Activity, ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ClipboardList, GraduationCap, LayoutDashboard, Menu, MessageSquare, UserRound, X, LogOut, RefreshCw, LockKeyhole } from 'lucide-react';
 import './styles.css';
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1').replace(/\\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api/v1').replace(/\/$/, '');
 const years = ['1st Professional', '2nd Professional', '3rd Professional Part I', '3rd Professional Part II', 'Internship', 'Graduate'];
 const exams = ['NEET PG', 'INI-CET', 'MBBS University Exams'];
 const languages = ['English', 'Tamil', 'Hindi', 'Malayalam', 'Telugu', 'Kannada'];
