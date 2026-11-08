@@ -13,8 +13,9 @@ Last updated: 2026-11-08
 - [x] Add authenticated student profile read/update API and student-owned mentorship application endpoints.
 - [x] Add college catalogue read endpoint and complete initial PostgreSQL schema migration (catalogue data not yet seeded).
 - [ ] Install dependencies and run type-check/build in a local development environment.
+- [x] Start Phase 2 academic infrastructure with a curriculum catalogue and faculty-authorized subject/unit/chapter/topic creation APIs.
 - [ ] Provision local PostgreSQL and validate the complete initial migration.
-- [ ] Confirm a successful CI run on the latest PR commit.
+- [x] Confirm Phase 1 CI succeeded on commit `536cfd5`; rerun CI for the new Phase 2 commit.
 - [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete permission-based RBAC.
 - [x] Add a protected admin/academic-admin mentorship review API with role guard and transactional audit logging.
 - [x] Add a role-aware admin workspace to list, filter, approve, decline and start review of mentorship applications.
@@ -31,7 +32,7 @@ Last updated: 2026-11-08
 - Privileged roles must be granted by an authorised database operator; there is no public role-elevation endpoint.
 - Admins can assign eligible active FACULTY users with a FacultyProfile. Faculty see only records assigned to their own user ID and can submit recommendations; they cannot approve/decline or browse other applications.
 - Faculty onboarding/invitation and workload reporting are not implemented.
-- Access tokens remain in memory; refreshing the page signs out. The learning roadmap is informational and not connected to course content.
+- Access tokens remain in memory; refreshing the page signs out. The learning roadmap is informational; the Phase 2 curriculum API is now connected to the database, but a faculty content-management UI, lectures, notes and student course enrolment are not implemented.
 
 ## Existing implementation and gaps
 - React + Vite landing page and API-connected student portal.
@@ -41,7 +42,7 @@ Last updated: 2026-11-08
 - Student authentication must not be exposed publicly until the remaining security controls, migrations, HTTPS, monitoring and security review are complete.
 
 ## Pending phases
-Faculty onboarding and workload reporting → academic CMS → QBank → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
+Faculty onboarding and workload reporting → academic CMS UI and course content → QBank → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
 
 ## Release rule
 A feature is complete only after implementation and tests. External services, paid infrastructure, production releases and irreversible operations require owner approval.
