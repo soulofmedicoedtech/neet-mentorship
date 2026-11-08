@@ -17,6 +17,6 @@ export class UpdateStudentProfileDto {
   @IsOptional() @IsString() @IsIn(languages)
   preferredLanguage?: string;
 
-  @IsOptional() @IsString() @MaxLength(64)
+  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(64)
   collegeId?: string | null;
 }
