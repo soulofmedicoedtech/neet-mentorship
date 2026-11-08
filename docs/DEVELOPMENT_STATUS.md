@@ -5,21 +5,33 @@ Last updated: 2026-11-08
 - [x] Locate and preserve existing GitHub project.
 - [x] Create isolated branch `praxis/phase-1-foundation`.
 - [x] Document architecture and domain boundaries.
-- [x] Add NestJS API service scaffold.
-- [x] Add initial PostgreSQL/Prisma data model.
+- [x] Add NestJS API service scaffold and versioned health endpoint.
+- [x] Add initial PostgreSQL/Prisma identity, role, session, curriculum and audit schema.
+- [x] Add initial CI workflow for web build, API build/tests and Prisma validation.
+- [x] Add student registration/login API foundation (not production-ready).
+- [x] Add responsive student portal front-end prototype with profile, mentorship and learning roadmap views.
 - [ ] Install dependencies and run type-check/build in a local development environment.
 - [ ] Provision local PostgreSQL and validate first migration.
-- [ ] Add automated CI checks.
-- [ ] Implement production-grade authentication and RBAC.
+- [ ] Confirm a successful CI run on the latest PR commit.
+- [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting, authenticated route guards and complete RBAC.
 
-## Existing implementation
-- React + Vite landing page exists on `main`.
-- It is a public marketing page, not a production student application.
-- Login is currently a placeholder; production authentication/backend were not found in the initial inspection.
-- No production database, QBank, examination engine, payment integration, video streaming or AI verification pipeline has been established.
+## Current student portal prototype
+- Student portal is reachable from the landing page using the **Student Portal Preview** entry.
+- Profile fields include professional year, college, university, exam goal and preferred language.
+- Mentorship application preview captures goals, challenges and preferred contact method.
+- Learning roadmap lists planned video, notes, QBank, university preparation and test modules.
+- These are browser-session-only preview interactions. They are not persisted, authenticated, submitted to a backend or connected to a real mentor.
+- Do not use demo data or preview interactions as real student records.
+
+## Existing implementation and gaps
+- React + Vite landing page and student portal prototype.
+- NestJS API scaffold with health endpoint and initial authentication foundation.
+- Prisma schema includes identity, roles, sessions, student/faculty profiles, curriculum and audit events.
+- No production database, validated migrations, full QBank, examination engine, payment integration, video streaming or AI verification pipeline has been established.
+- Student authentication must not be exposed publicly until the remaining security controls, migrations, HTTPS, monitoring and security review are complete.
 
 ## Pending phases
-Academic CMS → QBank → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
+Student profile persistence and college catalogue → mentorship application API and mentor workflow → academic CMS → QBank → examination engine → video → MBBS university module → AI assistant → subscriptions/payments → security/performance → deployment.
 
 ## Release rule
 A feature is complete only after implementation and tests. External services, paid infrastructure, production releases and irreversible operations require owner approval.
