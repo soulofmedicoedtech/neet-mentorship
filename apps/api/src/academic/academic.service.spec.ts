@@ -16,8 +16,8 @@ describe('AcademicService', () => {
   };
   const prisma = {
     subject: { findMany: jest.fn() },
-    course: { findMany: jest.fn() },
-    courseFacultyAssignment: { findMany: jest.fn() },
+    course: { findMany: jest.fn(), findUnique: jest.fn() },
+    courseFacultyAssignment: { findMany: jest.fn(), findUnique: jest.fn() },
     lecture: { findMany: jest.fn(), findUnique: jest.fn() },
     $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
   };
@@ -41,7 +41,7 @@ describe('AcademicService', () => {
   });
 
   it('requires a faculty course assignment before creating a lecture', async () => {
-    prisma.course.findUnique = jest.fn().mockResolvedValue({ id: 'course1', subjectId: 'subject1' });
+    prisma.course.findUnique.mockResolvedValue({ id: 'course1', subjectId: 'subject1' });
     prisma.courseFacultyAssignment.findUnique.mockResolvedValue(null);
     await expect(service.createLecture('faculty1', 'course1', { title: 'Cell structure' }, false)).rejects.toBeInstanceOf(NotFoundException);
     expect(tx.lecture.create).not.toHaveBeenCalled();
