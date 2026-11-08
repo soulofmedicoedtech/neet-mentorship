@@ -314,11 +314,18 @@ function AcademicPortal({ session, onBack, onLogout }) {
   const [unitForm, setUnitForm] = React.useState({ subjectId:'', title:'' });
   const [chapterForm, setChapterForm] = React.useState({ unitId:'', title:'' });
   const [topicForm, setTopicForm] = React.useState({ chapterId:'', title:'' });
+  const [courses, setCourses] = React.useState([]);
+  const [facultyCourses, setFacultyCourses] = React.useState([]);
+  const [courseForm, setCourseForm] = React.useState({ code:'', title:'', subjectId:'', description:'' });
+  const [mentors, setMentors] = React.useState([]);
+  const [courseAssignments, setCourseAssignments] = React.useState({});
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const [notice, setNotice] = React.useState('');
   const token = session.accessToken;
   const roleNames = session.user?.roles || [];
+  const isAcademicAdmin = roleNames.some(role => ['SUPER_ADMIN','ADMIN','ACADEMIC_ADMIN'].includes(role));
+  const isFaculty = roleNames.includes('FACULTY');
   const load = React.useCallback(async () => {
     setError('');
     try {
@@ -327,6 +334,39 @@ function AcademicPortal({ session, onBack, onLogout }) {
     } catch (err) { setError(err.message); }
   }, []);
   React.useEffect(() => { load(); }, [load]);
+  const loadCourses = React.useCallback(async () => {
+    try {
+      const data = await api('/academic/courses');
+      setCourses(Array.isArray(data) ? data : []);
+      if (isFaculty) {
+        const assigned = await api('/academic/faculty/me/courses', { token });
+        setFacultyCourses(Array.isArray(assigned) ? assigned : []);
+      }
+    } catch (err) { setError(err.message); }
+  }, [isFaculty, token]);
+  React.useEffect(() => { loadCourses(); }, [loadCourses]);
+  React.useEffect(() => {
+    if (isAcademicAdmin) api('/admin/mentorship-applications/mentors', { token }).then(setMentors).catch(err => setError(err.message));
+  }, [isAcademicAdmin, token]);
+  async function createCourse(event) {
+    event.preventDefault(); setBusy(true); setError(''); setNotice('');
+    try {
+      await api('/academic/courses', { token, method:'POST', body:JSON.stringify(courseForm) });
+      setCourseForm({ code:'', title:'', subjectId:'', description:'' });
+      await loadCourses(); setNotice('Course created and audit logged.');
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+  async function assignCourseFaculty(courseId) {
+    const facultyId = courseAssignments[courseId];
+    if (!facultyId) return;
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await api('/academic/courses/'+courseId+'/faculty', { token, method:'POST', body:JSON.stringify({ facultyId }) });
+      setNotice('Faculty assigned to course and audit logged.');
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
   const units = subjects.find(x => x.id === unitForm.subjectId)?.units || [];
   const chapters = subjects.flatMap(x => x.units || []).find(x => x.id === chapterForm.unitId)?.chapters || [];
   async function create(path, payload, reset) {
@@ -376,6 +416,22 @@ function AcademicPortal({ session, onBack, onLogout }) {
           <button className="primary" disabled={busy || !topicForm.chapterId}>Add topic</button>
         </form>
       </section>
+      {isAcademicAdmin && <section className="academicForms">
+        <form className="academicForm" onSubmit={createCourse}>
+          <span className="eyebrow">05 · COURSE</span><h2>Create course</h2>
+          <label>Course code<input required minLength="2" maxLength="30" pattern="[A-Z0-9_-]+" value={courseForm.code} onChange={e=>setCourseForm(v=>({...v,code:e.target.value.toUpperCase()}))} placeholder="ANAT-CORE"/></label>
+          <label>Course title<input required minLength="2" maxLength="160" value={courseForm.title} onChange={e=>setCourseForm(v=>({...v,title:e.target.value}))} placeholder="Anatomy Core Course"/></label>
+          <label>Parent subject<select required value={courseForm.subjectId} onChange={e=>setCourseForm(v=>({...v,subjectId:e.target.value}))}><option value="">Select subject</option>{subjects.map(s=><option key={s.id} value={s.id}>{s.code} · {s.name}</option>)}</select></label>
+          <label>Description<textarea rows="2" maxLength="1000" value={courseForm.description} onChange={e=>setCourseForm(v=>({...v,description:e.target.value}))}/></label>
+          <button className="primary" disabled={busy || !subjects.length}>Create course</button>
+        </form>
+        <div className="academicForm"><span className="eyebrow">06 · FACULTY OWNERSHIP</span><h2>Assign faculty</h2>
+          {courses.length===0?<p className="emptyState">Create a course before assigning faculty.</p>:courses.map(course=><div className="applicationItem" key={course.id}><div><b>{course.code} · {course.title}</b><small>{course.subject?.name || 'Subject'}</small><select aria-label={'Faculty for '+course.title} value={courseAssignments[course.id] || ''} onChange={e=>setCourseAssignments(v=>({...v,[course.id]:e.target.value}))}><option value="">Select verified faculty</option>{mentors.map(m=><option key={m.id} value={m.id}>{m.displayName} · {m.email}</option>)}</select></div><button type="button" disabled={busy || !courseAssignments[course.id]} onClick={()=>assignCourseFaculty(course.id)}>Assign</button></div>)}
+        </div>
+      </section>}
+      {isFaculty && <section className="academicTreePanel"><div className="academicTreeHeading"><div><span className="eyebrow">FACULTY TEACHING</span><h2>My assigned courses</h2></div><button className="refreshButton" onClick={loadCourses}><RefreshCw size={14}/> Refresh</button></div>
+        {facultyCourses.length===0?<p className="emptyState">No courses have been assigned to your faculty account yet.</p>:facultyCourses.map(row=><article className="applicationItem" key={row.course.id}><div><b>{row.course.code} · {row.course.title}</b><small>{row.course.subject?.name || 'Subject'}</small></div></article>)}
+      </section>}
       <section className="academicTreePanel"><div className="academicTreeHeading"><div><span className="eyebrow">LIVE DATABASE CATALOGUE</span><h2>Curriculum structure</h2></div><span>{subjects.length} subjects</span></div>
         {subjects.length===0?<div className="adminEmpty"><BookOpen size={28}/><b>No curriculum records yet</b><span>Create a subject to start building the academic catalogue.</span></div>:subjects.map(subject=><details className="academicSubject" key={subject.id} open><summary><b>{subject.code} · {subject.name}</b><span>{subject.units?.length || 0} units</span></summary>{(subject.units||[]).map(unit=><details className="academicUnit" key={unit.id}><summary>{unit.title}<span>{unit.chapters?.length || 0} chapters</span></summary>{(unit.chapters||[]).map(chapter=><details className="academicChapter" key={chapter.id}><summary>{chapter.title}<span>{chapter.topics?.length || 0} topics</span></summary><ul>{(chapter.topics||[]).map(topic=><li key={topic.id}>{topic.title}</li>)}</ul></details>)}</details>)}</details>)}
       </section>
