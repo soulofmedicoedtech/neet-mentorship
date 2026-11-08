@@ -15,6 +15,7 @@ describe('AcademicService', () => {
   const prisma = {
     subject: { findMany: jest.fn() },
     course: { findMany: jest.fn() },
+    courseFacultyAssignment: { findMany: jest.fn() },
     $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
   };
   let service: AcademicService;
