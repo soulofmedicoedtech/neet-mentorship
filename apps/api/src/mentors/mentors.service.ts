@@ -27,22 +27,29 @@ export class MentorsService {
   }
 
   async submitReview(mentorUserId: string, applicationId: string, input: SubmitMentorReviewDto) {
-    const existing = await this.prisma.mentorshipApplication.findUnique({
-      where: { id: applicationId },
-      select: { id: true, assignedMentorId: true, status: true, mentorReviewNote: true },
-    });
-    if (!existing) throw new NotFoundException('Mentorship application not found');
-    if (existing.assignedMentorId !== mentorUserId) {
-      throw new ForbiddenException('This application is not assigned to your account');
-    }
-    if (!['PENDING', 'UNDER_REVIEW'].includes(existing.status)) {
-      throw new ForbiddenException('This application is no longer open for mentor review');
-    }
-
     return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.mentorshipApplication.update({
-        where: { id: applicationId },
+      const updatedCount = await tx.mentorshipApplication.updateMany({
+        where: {
+          id: applicationId,
+          assignedMentorId: mentorUserId,
+          status: { in: ['PENDING', 'UNDER_REVIEW'] },
+        },
         data: { mentorReviewNote: input.reviewNote.trim() },
+      });
+      if (!updatedCount.count) {
+        const exists = await tx.mentorshipApplication.findUnique({
+          where: { id: applicationId },
+          select: { id: true, assignedMentorId: true, status: true },
+        });
+        if (!exists) throw new NotFoundException('Mentorship application not found');
+        if (exists.assignedMentorId !== mentorUserId) {
+          throw new ForbiddenException('This application is not assigned to your account');
+        }
+        throw new ForbiddenException('This application is no longer open for mentor review');
+      }
+
+      const updated = await tx.mentorshipApplication.findUniqueOrThrow({
+        where: { id: applicationId },
         select: { id: true, status: true, mentorReviewNote: true, updatedAt: true },
       });
       await tx.auditEvent.create({
@@ -52,7 +59,6 @@ export class MentorsService {
           resource: 'MentorshipApplication',
           resourceId: applicationId,
           metadata: {
-            previousNotePresent: Boolean(existing.mentorReviewNote),
             noteLength: input.reviewNote.trim().length,
           } as Prisma.InputJsonValue,
         },
@@ -60,4 +66,4 @@ export class MentorsService {
       return updated;
     });
   }
-}
+}}
