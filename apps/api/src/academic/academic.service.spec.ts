@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AcademicService } from './academic.service';
 import { LearningResourceInputType } from './dto/create-learning-resource.dto';
 
@@ -13,13 +13,18 @@ describe('AcademicService', () => {
     learningResource: { create: jest.fn(), updateMany: jest.fn() },
     user: { findFirst: jest.fn() },
     courseFacultyAssignment: { upsert: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
+    courseEnrollment: { upsert: jest.fn(), update: jest.fn() },
+    lectureProgress: { findUnique: jest.fn(), upsert: jest.fn(), count: jest.fn() },
+    lecture: { count: jest.fn() },
     auditEvent: { create: jest.fn() },
   };
   const prisma = {
     subject: { findMany: jest.fn() },
     course: { findMany: jest.fn(), findUnique: jest.fn() },
     courseFacultyAssignment: { findMany: jest.fn(), findUnique: jest.fn() },
-    lecture: { findMany: jest.fn(), findUnique: jest.fn() },
+    lecture: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
+    studentProfile: { findUnique: jest.fn() },
+    courseEnrollment: { findMany: jest.fn(), findUnique: jest.fn() },
     $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
   };
   let service: AcademicService;
@@ -31,6 +36,54 @@ describe('AcademicService', () => {
   });
 
 
+
+
+  it('enrolls a student idempotently and records an audit event', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.course.findFirst.mockResolvedValue({ id: 'course1' });
+    tx.courseEnrollment.upsert.mockResolvedValue({ id: 'enrol1', courseId: 'course1' });
+    await expect(service.enrollStudentInCourse('student1', 'course1')).resolves.toMatchObject({ id: 'enrol1' });
+    expect(tx.courseEnrollment.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { studentProfileId_courseId: { studentProfileId: 'profile1', courseId: 'course1' } },
+    }));
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'STUDENT_COURSE_ENROLLED' }) }));
+  });
+
+  it('does not enroll a student in an inactive or missing course', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.course.findFirst.mockResolvedValue(null);
+    await expect(service.enrollStudentInCourse('student1', 'course1')).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.courseEnrollment.upsert).not.toHaveBeenCalled();
+  });
+
+  it('lists only the signed-in student profile enrollments and published lectures', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.courseEnrollment.findMany.mockResolvedValue([]);
+    await expect(service.listMyEnrollments('student1')).resolves.toEqual([]);
+    expect(prisma.courseEnrollment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { studentProfileId: 'profile1', course: { active: true } },
+    }));
+  });
+
+  it('requires course enrollment before recording lecture progress', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.lecture.findFirst.mockResolvedValue({ id: 'lecture1', courseId: 'course1' });
+    prisma.courseEnrollment.findUnique.mockResolvedValue(null);
+    await expect(service.updateStudentLectureProgress('student1', 'lecture1', { completed: true })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.lectureProgress.upsert).not.toHaveBeenCalled();
+  });
+
+  it('stores lecture progress and marks the course complete when all published lectures are complete', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.lecture.findFirst.mockResolvedValue({ id: 'lecture1', courseId: 'course1' });
+    prisma.courseEnrollment.findUnique.mockResolvedValue({ id: 'enrol1' });
+    tx.lectureProgress.findUnique.mockResolvedValue(null);
+    tx.lectureProgress.upsert.mockResolvedValue({ id: 'progress1', lectureId: 'lecture1', watchedSeconds: 90, completedAt: new Date() });
+    tx.lecture.count.mockResolvedValue(1);
+    tx.lectureProgress.count.mockResolvedValue(1);
+    await expect(service.updateStudentLectureProgress('student1', 'lecture1', { watchedSeconds: 90, completed: true })).resolves.toMatchObject({ id: 'progress1' });
+    expect(tx.courseEnrollment.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'enrol1' }, data: expect.objectContaining({ completedAt: expect.any(Date) }) }));
+  });
 
   it('lists only published lectures and published learning resources for students', async () => {
     prisma.lecture.findMany.mockResolvedValue([]);
