@@ -48,7 +48,7 @@ describe('StudentsService', () => {
       goal: 'Build a consistent postgraduate entrance preparation plan.',
     })).resolves.toEqual(created);
     expect(prisma.mentorshipApplication.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ studentProfileId: 'profile-1', status: undefined }),
+      data: expect.objectContaining({ studentProfileId: 'profile-1', goal: 'Build a consistent postgraduate entrance preparation plan.' }),
     }));
   });
 
