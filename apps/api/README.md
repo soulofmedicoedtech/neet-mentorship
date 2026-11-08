@@ -163,3 +163,12 @@ Course creation, assignment and audit records are transactional. Course codes ar
 - `PATCH /api/v1/academic/lectures/:lectureId/review` — transition SUBMITTED to APPROVED/REJECTED, then APPROVED to PUBLISHED. Publishing also publishes approved attached resources.
 
 Content changes and review decisions are audit logged. Students cannot see draft, submitted, approved-but-unpublished or rejected content. Video and PDF records currently store HTTPS URLs and metadata only; binary upload, malware scanning, signed URLs, storage lifecycle and provider integration are not implemented. The migration `20261108213000_lecture_learning_resources` must be applied before using these endpoints.
+
+
+## Student course enrolment and progress
+
+- `POST /api/v1/academic/courses/:courseId/enroll` — authenticated STUDENT enrolment in an active course; repeated requests return the existing enrolment.
+- `GET /api/v1/academic/student/me/enrollments` — returns only the signed-in student's active course enrolments, published lectures/resources and their progress.
+- `PATCH /api/v1/academic/lectures/:lectureId/progress` — records non-decreasing watched seconds and/or completion for a published lecture in a course the student is enrolled in. The course is marked complete when every currently published lecture has been completed.
+
+The migration `20261108230000_student_learning_progress` must be applied before using these endpoints. Enrolment is currently open to authenticated student accounts; paid access, batch entitlements, subscriptions and payment checks are not implemented. Progress records are student-scoped and cannot be written for unpublished lectures or courses the student has not joined.
