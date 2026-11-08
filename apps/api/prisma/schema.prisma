@@ -50,6 +50,7 @@ model User {
   facultyProfile FacultyProfile?
   sessions       DeviceSession[]
   auditEvents    AuditEvent[]    @relation("AuditActor")
+  assignedApplications MentorshipApplication[] @relation("AssignedMentor")
 }
 
 model Role {
@@ -125,12 +126,17 @@ model MentorshipApplication {
   challenge         String?
   preferredContact  String?
   status            MentorshipApplicationStatus  @default(PENDING)
+  assignedMentorId  String?
+  assignedMentor    User?                        @relation("AssignedMentor", fields: [assignedMentorId], references: [id], onDelete: SetNull)
+  mentorReviewNote  String?
+  assignedAt        DateTime?
   createdAt         DateTime                     @default(now())
   updatedAt         DateTime                     @updatedAt
   studentProfile    StudentProfile               @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
 
   @@index([studentProfileId, createdAt])
   @@index([status, createdAt])
+  @@index([assignedMentorId, status, createdAt])
 }
 
 model FacultyProfile {
