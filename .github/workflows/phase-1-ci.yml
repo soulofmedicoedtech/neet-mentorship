@@ -1,0 +1,40 @@
+name: PRAXIS Phase 1 CI
+
+on:
+  push:
+    branches: ['main', 'praxis/**']
+  pull_request:
+    branches: ['main']
+
+jobs:
+  web-build:
+    name: Existing web app build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run build
+
+  api-build-and-test:
+    name: API build and unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - run: npm run build
+      - run: npm test -- --runInBand
+      - name: Validate Prisma schema
+        run: npx prisma validate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/praxis_ci

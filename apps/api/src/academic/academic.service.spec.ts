@@ -1,0 +1,336 @@
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { QuestionExamTrack } from '@prisma/client';
+import { AcademicService } from './academic.service';
+import { LearningResourceInputType } from './dto/create-learning-resource.dto';
+import { QuestionReviewDecision } from './dto/review-question.dto';
+
+describe('AcademicService', () => {
+  const tx = {
+    subject: { create: jest.fn(), findUnique: jest.fn() },
+    unit: { create: jest.fn(), findUnique: jest.fn() },
+    chapter: { create: jest.fn(), findUnique: jest.fn() },
+    topic: { create: jest.fn() },
+    course: { create: jest.fn(), findUnique: jest.fn() },
+    lecture: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn(), count: jest.fn() },
+    question: { create: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+    learningResource: { create: jest.fn(), updateMany: jest.fn() },
+    user: { findFirst: jest.fn() },
+    courseFacultyAssignment: { upsert: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
+    courseEnrollment: { upsert: jest.fn(), update: jest.fn() },
+    lectureProgress: { findUnique: jest.fn(), upsert: jest.fn(), count: jest.fn() },
+    questionAttempt: { create: jest.fn() },
+    questionBookmark: { upsert: jest.fn(), deleteMany: jest.fn() },
+    auditEvent: { create: jest.fn() },
+  };
+  const prisma = {
+    subject: { findMany: jest.fn(), findFirst: jest.fn() },
+    course: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
+    courseFacultyAssignment: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
+    lecture: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
+    studentProfile: { findUnique: jest.fn() },
+    courseEnrollment: { findMany: jest.fn(), findUnique: jest.fn() },
+    question: { findMany: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
+    topic: { findFirst: jest.fn() },
+    questionAttempt: { create: jest.fn() },
+    questionBookmark: { count: jest.fn(), findMany: jest.fn(), upsert: jest.fn(), deleteMany: jest.fn() },
+    $transaction: jest.fn((callback: (client: typeof tx) => unknown) => callback(tx)),
+  };
+  let service: AcademicService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new AcademicService(prisma as never);
+    tx.auditEvent.create.mockResolvedValue({});
+  });
+
+
+
+
+
+  const validQuestionInput = {
+    subjectId: 'subject1',
+    examTrack: QuestionExamTrack.NEET_PG,
+    questionText: 'Which cell produces insulin?',
+    explanation: 'Beta cells of the pancreatic islets produce insulin.',
+    options: [
+      { text: 'Alpha cell', isCorrect: false },
+      { text: 'Beta cell', isCorrect: true },
+      { text: 'Delta cell', isCorrect: false },
+      { text: 'PP cell', isCorrect: false },
+    ],
+  };
+
+
+  it('creates a bookmark only for a published question and scopes it to the student profile', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.question.findFirst.mockResolvedValue({ id: 'question1' });
+    prisma.questionBookmark.upsert.mockResolvedValue({ id: 'bookmark1', questionId: 'question1' });
+    await expect(service.bookmarkQuestion('student1', 'question1')).resolves.toMatchObject({ id: 'bookmark1' });
+    expect(prisma.questionBookmark.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { studentProfileId_questionId: { studentProfileId: 'profile1', questionId: 'question1' } },
+    }));
+  });
+
+  it('does not allow bookmarking an unpublished question', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.question.findFirst.mockResolvedValue(null);
+    await expect(service.bookmarkQuestion('student1', 'draft-question')).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.questionBookmark.upsert).not.toHaveBeenCalled();
+  });
+
+  it('removes bookmarks only from the requesting student profile', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.questionBookmark.deleteMany.mockResolvedValue({ count: 1 });
+    await expect(service.removeQuestionBookmark('student1', 'question1')).resolves.toEqual({ removed: true });
+    expect(prisma.questionBookmark.deleteMany).toHaveBeenCalledWith({ where: { studentProfileId: 'profile1', questionId: 'question1' } });
+  });
+
+  it('lists only published bookmarked questions and omits answer keys', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.questionBookmark.count.mockResolvedValue(1);
+    prisma.questionBookmark.findMany.mockResolvedValue([{ id: 'bookmark1' }]);
+    await expect(service.listQuestionBookmarks('student1', { page: 1, limit: 10 })).resolves.toMatchObject({ total: 1 });
+    const query = prisma.questionBookmark.findMany.mock.calls[0][0];
+    expect(query.where).toEqual({ studentProfileId: 'profile1', question: { status: 'PUBLISHED' } });
+    expect(query.select.question.select.options.select).not.toHaveProperty('isCorrect');
+  });
+
+  it('requires exactly one correct answer for a single-best-answer question', async () => {
+    await expect(service.createQuestion('editor1', { ...validQuestionInput, options: validQuestionInput.options.map(option => ({ ...option, isCorrect: false })) }, true)).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.question.create).not.toHaveBeenCalled();
+  });
+
+  it('creates an MCQ draft with options and an audit event for an authorised editor', async () => {
+    prisma.subject.findFirst.mockResolvedValue({ id: 'subject1' });
+    tx.question.create.mockResolvedValue({ id: 'question1', status: 'DRAFT' });
+    await expect(service.createQuestion('editor1', validQuestionInput, true)).resolves.toMatchObject({ id: 'question1' });
+    expect(tx.question.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ subjectId: 'subject1', options: { create: expect.arrayContaining([expect.objectContaining({ isCorrect: true })]) } }),
+    }));
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'QBANK_QUESTION_CREATED' }) }));
+  });
+
+  it('requires faculty to be assigned to an active course in the question subject', async () => {
+    prisma.subject.findFirst.mockResolvedValue({ id: 'subject1' });
+    prisma.courseFacultyAssignment.findFirst.mockResolvedValue(null);
+    await expect(service.createQuestion('faculty1', validQuestionInput, false)).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.question.create).not.toHaveBeenCalled();
+  });
+
+  it('returns only published questions without exposing correct-answer flags or explanations', async () => {
+    prisma.question.count.mockResolvedValue(1);
+    prisma.question.findMany.mockResolvedValue([{ id: 'question1' }]);
+    await expect(service.listPublishedQuestions({ page: 1, limit: 10 })).resolves.toMatchObject({ total: 1, page: 1 });
+    const query = prisma.question.findMany.mock.calls[0][0];
+    expect(query.where).toEqual({ status: 'PUBLISHED' });
+    expect(query.select).not.toHaveProperty('explanation');
+    expect(query.select.options.select).not.toHaveProperty('isCorrect');
+  });
+
+  it('grades a student answer only against a published question and returns feedback after submission', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.question.findFirst.mockResolvedValue({
+      id: 'question1', explanation: 'Beta cells produce insulin.',
+      options: [{ id: 'opt1', text: 'Beta cell', isCorrect: true }, { id: 'opt2', text: 'Alpha cell', isCorrect: false }],
+    });
+    prisma.questionAttempt.create.mockResolvedValue({ id: 'attempt1', isCorrect: true });
+    await expect(service.submitQuestionAttempt('student1', 'question1', { selectedOptionId: 'opt1' })).resolves.toMatchObject({
+      id: 'attempt1', isCorrect: true, correctOption: { id: 'opt1', text: 'Beta cell' }, explanation: 'Beta cells produce insulin.',
+    });
+  });
+
+  it('rejects a selected option that belongs to another question', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.question.findFirst.mockResolvedValue({ id: 'question1', options: [{ id: 'opt1', text: 'Correct', isCorrect: true }] });
+    await expect(service.submitQuestionAttempt('student1', 'question1', { selectedOptionId: 'other' })).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.questionAttempt.create).not.toHaveBeenCalled();
+  });
+
+  it('does not publish a question before approval', async () => {
+    tx.question.findUnique.mockResolvedValue({ id: 'question1', status: 'SUBMITTED' });
+    await expect(service.reviewQuestion('admin1', 'question1', { status: QuestionReviewDecision.PUBLISHED })).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.question.update).not.toHaveBeenCalled();
+  });
+
+  it('enrolls a student idempotently and records an audit event', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.course.findFirst.mockResolvedValue({ id: 'course1' });
+    tx.courseEnrollment.upsert.mockResolvedValue({ id: 'enrol1', courseId: 'course1' });
+    await expect(service.enrollStudentInCourse('student1', 'course1')).resolves.toMatchObject({ id: 'enrol1' });
+    expect(tx.courseEnrollment.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { studentProfileId_courseId: { studentProfileId: 'profile1', courseId: 'course1' } },
+    }));
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'STUDENT_COURSE_ENROLLED' }) }));
+  });
+
+  it('does not enroll a student in an inactive or missing course', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.course.findFirst.mockResolvedValue(null);
+    await expect(service.enrollStudentInCourse('student1', 'course1')).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.courseEnrollment.upsert).not.toHaveBeenCalled();
+  });
+
+  it('lists only the signed-in student profile enrollments and published lectures', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.courseEnrollment.findMany.mockResolvedValue([]);
+    await expect(service.listMyEnrollments('student1')).resolves.toEqual([]);
+    expect(prisma.courseEnrollment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { studentProfileId: 'profile1', course: { active: true } },
+    }));
+  });
+
+  it('requires course enrollment before recording lecture progress', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.lecture.findFirst.mockResolvedValue({ id: 'lecture1', courseId: 'course1' });
+    prisma.courseEnrollment.findUnique.mockResolvedValue(null);
+    await expect(service.updateStudentLectureProgress('student1', 'lecture1', { completed: true })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.lectureProgress.upsert).not.toHaveBeenCalled();
+  });
+
+  it('stores lecture progress and marks the course complete when all published lectures are complete', async () => {
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile1' });
+    prisma.lecture.findFirst.mockResolvedValue({ id: 'lecture1', courseId: 'course1' });
+    prisma.courseEnrollment.findUnique.mockResolvedValue({ id: 'enrol1' });
+    tx.lectureProgress.findUnique.mockResolvedValue(null);
+    tx.lectureProgress.upsert.mockResolvedValue({ id: 'progress1', lectureId: 'lecture1', watchedSeconds: 90, completedAt: new Date() });
+    tx.lecture.count.mockResolvedValue(1);
+    tx.lectureProgress.count.mockResolvedValue(1);
+    await expect(service.updateStudentLectureProgress('student1', 'lecture1', { watchedSeconds: 90, completed: true })).resolves.toMatchObject({ id: 'progress1' });
+    expect(tx.courseEnrollment.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'enrol1' }, data: expect.objectContaining({ completedAt: expect.any(Date) }) }));
+  });
+
+  it('lists only published lectures and published learning resources for students', async () => {
+    prisma.lecture.findMany.mockResolvedValue([]);
+    await service.listPublishedLectures('course1');
+    expect(prisma.lecture.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { courseId: 'course1', status: 'PUBLISHED', course: { active: true } },
+      select: expect.objectContaining({ resources: expect.objectContaining({ where: { status: 'PUBLISHED' } }) }),
+    }));
+  });
+
+  it('requires a faculty course assignment before creating a lecture', async () => {
+    prisma.course.findUnique.mockResolvedValue({ id: 'course1', subjectId: 'subject1', active: true });
+    prisma.courseFacultyAssignment.findUnique.mockResolvedValue(null);
+    await expect(service.createLecture('faculty1', 'course1', { title: 'Cell structure' }, false)).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.lecture.create).not.toHaveBeenCalled();
+  });
+
+  it('creates a lecture and audit record for assigned faculty', async () => {
+    prisma.course.findUnique.mockResolvedValue({ id: 'course1', subjectId: 'subject1', active: true });
+    prisma.courseFacultyAssignment.findUnique.mockResolvedValue({ id: 'assignment1' });
+    tx.lecture.create.mockResolvedValue({ id: 'lecture1', title: 'Cell structure', status: 'DRAFT' });
+    await expect(service.createLecture('faculty1', 'course1', { title: 'Cell structure' }, false)).resolves.toMatchObject({ id: 'lecture1' });
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'ACADEMIC_LECTURE_CREATED' }) }));
+  });
+
+
+  it('rejects lecture creation for inactive courses', async () => {
+    prisma.course.findUnique.mockResolvedValue({ id: 'course1', subjectId: 'subject1', active: false });
+    await expect(service.createLecture('admin1', 'course1', { title: 'Inactive course lecture' }, true)).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.lecture.create).not.toHaveBeenCalled();
+  });
+
+  it('prevents adding resources after a lecture has been submitted', async () => {
+    prisma.lecture.findUnique.mockResolvedValue({ id: 'lecture1', authorId: 'faculty1', status: 'SUBMITTED' });
+    await expect(service.createLearningResource('faculty1', 'lecture1', { title: 'Notes', type: LearningResourceInputType.PDF, url: 'https://files.example.org/notes.pdf' }, false)).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.learningResource.create).not.toHaveBeenCalled();
+  });
+
+  it('creates a PDF resource only for the lecture author or privileged editor', async () => {
+    prisma.lecture.findUnique.mockResolvedValue({ id: 'lecture1', authorId: 'faculty1', status: 'DRAFT' });
+    tx.learningResource.create.mockResolvedValue({ id: 'resource1', type: LearningResourceInputType.PDF });
+    await expect(service.createLearningResource('faculty1', 'lecture1', { title: 'Lecture notes', type: LearningResourceInputType.PDF, url: 'https://files.example.org/notes.pdf' }, false)).resolves.toMatchObject({ id: 'resource1' });
+    await expect(service.createLearningResource('faculty2', 'lecture1', { title: 'Lecture notes', type: LearningResourceInputType.PDF, url: 'https://files.example.org/notes.pdf' }, false)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('submits a lecture and its draft resources for academic review', async () => {
+    tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', authorId: 'faculty1', status: 'DRAFT' });
+    tx.lecture.update.mockResolvedValue({ id: 'lecture1', status: 'SUBMITTED' });
+    await expect(service.submitLecture('faculty1', 'lecture1', false)).resolves.toMatchObject({ status: 'SUBMITTED' });
+    expect(tx.learningResource.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ lectureId: 'lecture1' }) }));
+  });
+
+  it('prevents publishing a lecture before it has been approved', async () => {
+    tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', status: 'SUBMITTED' });
+    await expect(service.reviewLecture('admin1', 'lecture1', { status: 'PUBLISHED' })).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.lecture.update).not.toHaveBeenCalled();
+  });
+
+  it('approves submitted lectures and audits the reviewer action', async () => {
+    tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', status: 'SUBMITTED' });
+    tx.lecture.update.mockResolvedValue({ id: 'lecture1', status: 'APPROVED' });
+    await expect(service.reviewLecture('admin1', 'lecture1', { status: 'APPROVED' })).resolves.toMatchObject({ status: 'APPROVED' });
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'ACADEMIC_LECTURE_REVIEWED' }) }));
+  });
+
+  it('lists active courses without exposing faculty account details', async () => {
+    prisma.course.findMany.mockResolvedValue([{ id: 'course1', code: 'ANAT-01' }]);
+    await expect(service.listCourses()).resolves.toHaveLength(1);
+    expect(prisma.course.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { active: true } }));
+  });
+
+  it('creates a course under an existing subject and audits it', async () => {
+    tx.subject.findUnique.mockResolvedValue({ id: 's1' });
+    tx.course.create.mockResolvedValue({ id: 'course1', code: 'ANAT-01', subjectId: 's1' });
+    await expect(service.createCourse('admin1', { code: 'ANAT-01', title: 'Anatomy Core', subjectId: 's1' })).resolves.toMatchObject({ id: 'course1' });
+    expect(tx.auditEvent.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'ACADEMIC_COURSE_CREATED' }) }));
+  });
+
+  it('rejects course creation when the subject does not exist', async () => {
+    tx.subject.findUnique.mockResolvedValue(null);
+    await expect(service.createCourse('admin1', { code: 'ANAT-01', title: 'Anatomy Core', subjectId: 'missing' })).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.course.create).not.toHaveBeenCalled();
+  });
+
+  it('assigns only active, verified faculty accounts and audits the assignment', async () => {
+    tx.course.findUnique.mockResolvedValue({ id: 'course1', code: 'ANAT-01' });
+    tx.user.findFirst.mockResolvedValue({ id: 'faculty1' });
+    tx.courseFacultyAssignment.upsert.mockResolvedValue({ id: 'assignment1', courseId: 'course1', facultyId: 'faculty1' });
+    await expect(service.assignFaculty('admin1', 'course1', 'faculty1')).resolves.toMatchObject({ id: 'assignment1' });
+    expect(tx.user.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: 'ACTIVE' }) }));
+    expect(tx.auditEvent.create).toHaveBeenCalled();
+  });
+
+  it('returns only the authenticated faculty member course assignments', async () => {
+    prisma.courseFacultyAssignment.findMany.mockResolvedValue([{ course: { id: 'course1' } }]);
+    await expect(service.listMyCourses('faculty1')).resolves.toHaveLength(1);
+    expect(prisma.courseFacultyAssignment.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { facultyId: 'faculty1', course: { active: true } } }));
+  });
+
+  it('returns active curriculum in hierarchy order', async () => {
+    prisma.subject.findMany.mockResolvedValue([{ id: 's1', units: [] }]);
+    await expect(service.listCurriculum()).resolves.toHaveLength(1);
+    expect(prisma.subject.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { active: true } }));
+  });
+
+  it('creates a subject and records an audit event in one transaction', async () => {
+    tx.subject.create.mockResolvedValue({ id: 's1', code: 'ANAT', name: 'Anatomy' });
+    await expect(service.createSubject('admin1', { code: 'ANAT', name: 'Anatomy' })).resolves.toMatchObject({ id: 's1' });
+    expect(tx.auditEvent.create).toHaveBeenCalled();
+  });
+
+  it('rejects a duplicate subject code', async () => {
+    const { Prisma } = await import('@prisma/client');
+    const known = new Prisma.PrismaClientKnownRequestError('duplicate', { code: 'P2002', clientVersion: 'test' });
+    prisma.$transaction.mockRejectedValueOnce(known as never);
+    await expect(service.createSubject('admin1', { code: 'ANAT', name: 'Anatomy' })).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('does not create a unit when its subject does not exist', async () => {
+    tx.subject.findUnique.mockResolvedValue(null);
+    await expect(service.createUnit('faculty1', 'missing', { title: 'General Anatomy' })).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.unit.create).not.toHaveBeenCalled();
+  });
+
+  it('creates a chapter only under an existing unit', async () => {
+    tx.unit.findUnique.mockResolvedValue({ id: 'u1' });
+    tx.chapter.create.mockResolvedValue({ id: 'c1', unitId: 'u1', title: 'Introduction' });
+    await expect(service.createChapter('faculty1', 'u1', { title: 'Introduction' })).resolves.toMatchObject({ id: 'c1' });
+  });
+
+  it('creates a topic only under an existing chapter', async () => {
+    tx.chapter.findUnique.mockResolvedValue({ id: 'c1' });
+    tx.topic.create.mockResolvedValue({ id: 't1', chapterId: 'c1', title: 'Anatomical position' });
+    await expect(service.createTopic('faculty1', 'c1', { title: 'Anatomical position' })).resolves.toMatchObject({ id: 't1' });
+  });
+});
