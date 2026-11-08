@@ -15,7 +15,19 @@ This repository is being developed in verified phases. The existing React + Vite
 
 ## Current phase
 
-**Phase 1 — Foundation:** architecture, API service scaffold, health endpoint, initial relational data model and security conventions.
+**Phase 1 — Foundation:** architecture, API service scaffold, student authentication, API-backed student profile and mentorship workflows, initial relational data model and security conventions.
+
+The React student portal now supports API registration/sign-in, profile retrieval and updates, college catalogue search, mentorship application submission and application-status history. Authentication tokens are held in memory only; refreshing the page signs the student out. The demo preview remains separate and is not sent to the API.
+
+### Connect the web app to the API
+
+Create a root `.env.local` file (do not commit it) with:
+
+```bash
+VITE_API_BASE_URL=http://localhost:4000/api/v1
+```
+
+Start the API on port 4000 and the web app with `npm run dev`. Configure the API's `CORS_ORIGINS` to include the exact web-app origin. For a hosted preview, set `VITE_API_BASE_URL` to the API base URL and configure the API CORS allow-list for that exact hosted origin. Do not expose the current development authentication service publicly.
 
 ## Planned workspace
 
