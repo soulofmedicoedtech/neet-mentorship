@@ -10,6 +10,10 @@ import { CreateLectureDto } from './dto/create-lecture.dto';
 import { CreateLearningResourceDto } from './dto/create-learning-resource.dto';
 import { ReviewContentDto } from './dto/review-content.dto';
 import { UpdateLectureProgressDto } from './dto/update-lecture-progress.dto';
+import { CreateQuestionDto } from './dto/create-question.dto';
+import { ListQuestionsDto } from './dto/list-questions.dto';
+import { SubmitQuestionAttemptDto } from './dto/submit-question-attempt.dto';
+import { QuestionReviewDecision, ReviewQuestionDto } from './dto/review-question.dto';
 
 @Injectable()
 export class AcademicService {
@@ -17,6 +21,108 @@ export class AcademicService {
 
 
 
+
+
+  async createQuestion(actorId: string, input: CreateQuestionDto, isPrivileged: boolean) {
+    const correctCount = input.options.filter(option => option.isCorrect === true).length;
+    if (correctCount !== 1) throw new ConflictException('A single-best-answer question must have exactly one correct option');
+    const subject = await this.prisma.subject.findFirst({ where: { id: input.subjectId, active: true }, select: { id: true } });
+    if (!subject) throw new NotFoundException('Active subject not found');
+    if (input.topicId) {
+      const topic = await this.prisma.topic.findFirst({ where: { id: input.topicId, chapter: { unit: { subjectId: input.subjectId } } }, select: { id: true } });
+      if (!topic) throw new NotFoundException('Topic does not belong to the selected subject');
+    }
+    if (!isPrivileged) {
+      const assignment = await this.prisma.courseFacultyAssignment.findFirst({ where: { facultyId: actorId, course: { subjectId: input.subjectId, active: true } }, select: { id: true } });
+      if (!assignment) throw new NotFoundException('An active course assignment for this subject is required');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const question = await tx.question.create({
+        data: {
+          subjectId: input.subjectId, topicId: input.topicId, authorId: actorId,
+          examTrack: input.examTrack, difficulty: input.difficulty ?? 'MEDIUM',
+          questionText: input.questionText.trim(), explanation: input.explanation?.trim(),
+          yearAsked: input.yearAsked, marks: input.marks, sourceReference: input.sourceReference?.trim(),
+          options: { create: input.options.map((option, index) => ({ text: option.text.trim(), sortOrder: option.sortOrder ?? index, isCorrect: option.isCorrect === true })) },
+        },
+        select: { id: true, status: true, examTrack: true, questionText: true, createdAt: true },
+      });
+      await tx.auditEvent.create({ data: { actorId, action: 'QBANK_QUESTION_CREATED', resource: 'Question', resourceId: question.id, metadata: { subjectId: input.subjectId, examTrack: input.examTrack } as Prisma.InputJsonValue } });
+      return question;
+    });
+  }
+
+  async submitQuestion(actorId: string, questionId: string, isPrivileged: boolean) {
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.question.findUnique({ where: { id: questionId }, select: { id: true, authorId: true, status: true } });
+      if (!current || (!isPrivileged && current.authorId !== actorId)) throw new NotFoundException('Question not found');
+      if (!['DRAFT', 'REJECTED'].includes(current.status)) throw new ConflictException('Only draft or rejected questions can be submitted');
+      const question = await tx.question.update({ where: { id: questionId }, data: { status: 'SUBMITTED', submittedAt: new Date(), reviewNote: null }, select: { id: true, status: true, submittedAt: true } });
+      await tx.auditEvent.create({ data: { actorId, action: 'QBANK_QUESTION_SUBMITTED', resource: 'Question', resourceId: questionId } });
+      return question;
+    });
+  }
+
+  listQuestionReviewQueue() {
+    return this.prisma.question.findMany({
+      where: { status: { in: ['SUBMITTED', 'APPROVED'] } },
+      select: { id: true, questionText: true, examTrack: true, difficulty: true, yearAsked: true, marks: true, sourceReference: true, status: true, submittedAt: true, subject: { select: { code: true, name: true } }, topic: { select: { title: true } }, author: { select: { id: true, displayName: true, email: true } }, options: { select: { id: true, text: true, sortOrder: true, isCorrect: true }, orderBy: { sortOrder: 'asc' } } },
+      orderBy: { submittedAt: 'asc' },
+      take: 100,
+    });
+  }
+
+  async reviewQuestion(actorId: string, questionId: string, input: ReviewQuestionDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.question.findUnique({ where: { id: questionId }, select: { id: true, status: true } });
+      if (!current) throw new NotFoundException('Question not found');
+      const allowed = current.status === 'SUBMITTED'
+        ? [QuestionReviewDecision.APPROVED, QuestionReviewDecision.REJECTED]
+        : current.status === 'APPROVED' ? [QuestionReviewDecision.PUBLISHED] : [];
+      if (!allowed.includes(input.status)) throw new ConflictException('Invalid question review transition');
+      const now = new Date();
+      const question = await tx.question.update({
+        where: { id: questionId },
+        data: { status: input.status, reviewNote: input.reviewNote?.trim() ?? null, reviewedAt: now, publishedAt: input.status === 'PUBLISHED' ? now : null },
+        select: { id: true, status: true, reviewedAt: true, publishedAt: true },
+      });
+      await tx.auditEvent.create({ data: { actorId, action: 'QBANK_QUESTION_REVIEWED', resource: 'Question', resourceId: questionId, metadata: { previousStatus: current.status, status: input.status } as Prisma.InputJsonValue } });
+      return question;
+    });
+  }
+
+  async listPublishedQuestions(filters: ListQuestionsDto) {
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+    const where = { status: 'PUBLISHED' as const, ...(filters.subjectId ? { subjectId: filters.subjectId } : {}), ...(filters.examTrack ? { examTrack: filters.examTrack } : {}), ...(filters.difficulty ? { difficulty: filters.difficulty } : {}) };
+    const [total, items] = await this.prisma.$transaction([
+      this.prisma.question.count({ where }),
+      this.prisma.question.findMany({
+        where, skip: (page - 1) * limit, take: limit,
+        select: { id: true, questionText: true, examTrack: true, difficulty: true, yearAsked: true, marks: true, subject: { select: { id: true, code: true, name: true } }, topic: { select: { id: true, title: true } }, options: { select: { id: true, text: true, sortOrder: true }, orderBy: { sortOrder: 'asc' } } },
+        orderBy: [{ subject: { sortOrder: 'asc' } }, { createdAt: 'desc' }],
+      }),
+    ]);
+    return { items, total, page, limit };
+  }
+
+  async submitQuestionAttempt(userId: string, questionId: string, input: SubmitQuestionAttemptDto) {
+    const profile = await this.prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
+    if (!profile) throw new NotFoundException('Student profile not found');
+    const question = await this.prisma.question.findFirst({
+      where: { id: questionId, status: 'PUBLISHED' },
+      select: { id: true, explanation: true, options: { select: { id: true, text: true, isCorrect: true } } },
+    });
+    if (!question) throw new NotFoundException('Published question not found');
+    const selected = question.options.find(option => option.id === input.selectedOptionId);
+    if (!selected) throw new NotFoundException('Selected option does not belong to this question');
+    const correctOption = question.options.find(option => option.isCorrect);
+    const attempt = await this.prisma.questionAttempt.create({
+      data: { studentProfileId: profile.id, questionId, selectedOptionId: selected.id, isCorrect: selected.isCorrect },
+      select: { id: true, isCorrect: true, attemptedAt: true },
+    });
+    return { ...attempt, correctOption: correctOption ? { id: correctOption.id, text: correctOption.text } : null, explanation: question.explanation };
+  }
 
   async enrollStudentInCourse(userId: string, courseId: string) {
     const profile = await this.prisma.studentProfile.findUnique({ where: { userId }, select: { id: true } });
