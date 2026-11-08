@@ -389,7 +389,7 @@ function AcademicPortal({ session, onBack, onLogout }) {
     event.preventDefault(); setBusy(true); setError(''); setNotice('');
     try {
       const { courseId, durationSec, ...payload } = lectureForm;
-      await api('/academic/courses/'+courseId+'/lectures', { token, method:'POST', body:JSON.stringify({ ...payload, durationSec: durationSec ? Number(durationSec) : undefined }) });
+      await api('/academic/courses/'+courseId+'/lectures', { token, method:'POST', body:JSON.stringify({ ...payload, description: payload.description || undefined, videoUrl: payload.videoUrl || undefined, durationSec: durationSec ? Number(durationSec) : undefined }) });
       setLectureForm(v=>({...v,title:'',description:'',videoUrl:'',durationSec:''}));
       await loadCourses(); setNotice('Lecture saved as draft. Add notes/resources, then submit it for academic review.');
     } catch (err) { setError(err.message); }
@@ -399,7 +399,7 @@ function AcademicPortal({ session, onBack, onLogout }) {
     const form = resourceForms[lectureId] || {};
     setBusy(true); setError(''); setNotice('');
     try {
-      await api('/academic/lectures/'+lectureId+'/resources', { token, method:'POST', body:JSON.stringify(form) });
+      await api('/academic/lectures/'+lectureId+'/resources', { token, method:'POST', body:JSON.stringify({ ...form, description: form.description || undefined }) });
       setResourceForms(v=>({...v,[lectureId]:{ title:'', type:'PDF', url:'', description:'' }}));
       await loadCourses(); setNotice('Learning resource saved as draft.');
     } catch (err) { setError(err.message); }
