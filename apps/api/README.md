@@ -91,3 +91,16 @@ ON CONFLICT ("userId", "roleId") DO NOTHING;
 Replace the email only with the verified administrator account. Run this only with direct, authorised database access; never expose this operation as a public API. The admin UI appears after that user signs in again and receives the updated role claim.
 
 Mentor assignment, mentor-specific record visibility, review-note history UI, and mentor endpoints are not yet implemented. Do not grant FACULTY a review role until assignment-based access is enforced.
+
+
+## Mentor assignment and faculty workspace
+
+Admin-only:
+- `GET /api/v1/admin/mentorship-applications/mentors` — active FACULTY users with a faculty profile.
+- `PATCH /api/v1/admin/mentorship-applications/:id/assignment` — assign an eligible faculty user to a pending or under-review application. Reassignment is audit logged.
+
+Faculty-only:
+- `GET /api/v1/mentors/me/mentorship-applications` — returns only records where `assignedMentorId` equals the authenticated user ID.
+- `PATCH /api/v1/mentors/me/mentorship-applications/:id/review` — saves a 20–2,000 character recommendation only when the application is assigned to that mentor and remains open. The update is audit logged.
+
+The mentor cannot browse the global application list, change application decisions, or reassign records. The administrator retains final approval/decline authority. A FACULTY account must have an active User, FACULTY role and FacultyProfile before it can be assigned. Provision faculty accounts only through a separately verified, authorised operator workflow.
