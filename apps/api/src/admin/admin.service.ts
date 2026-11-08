@@ -115,10 +115,17 @@ export class AdminService {
     }
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const updated = await tx.mentorshipApplication.update({
-          where: { id: applicationId },
+        const changed = await tx.mentorshipApplication.updateMany({
+          where: { id: applicationId, status: existing.status },
           data: { status: input.status },
-          include: {
+        });
+        if (!changed.count) throw new BadRequestException('Application status changed; refresh and try again');
+        const updated = await tx.mentorshipApplication.findUniqueOrThrow({
+          where: { id: applicationId },
+          select: {
+            id: true, goal: true, challenge: true, preferredContact: true, status: true,
+            assignedMentorId: true, assignedMentor: { select: { id: true, displayName: true, email: true } },
+            createdAt: true, updatedAt: true,
             studentProfile: {
               select: {
                 professionalYear: true,
