@@ -57,7 +57,7 @@ describe('AcademicService', () => {
   });
 
   it('creates a PDF resource only for the lecture author or privileged editor', async () => {
-    tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', authorId: 'faculty1' });
+    tx.lecture.findUnique.mockResolvedValue({ id: 'lecture1', authorId: 'faculty1', status: 'DRAFT' });
     tx.learningResource.create.mockResolvedValue({ id: 'resource1', type: LearningResourceInputType.PDF });
     await expect(service.createLearningResource('faculty1', 'lecture1', { title: 'Lecture notes', type: 'PDF', url: 'https://files.example.org/notes.pdf' }, false)).resolves.toMatchObject({ id: 'resource1' });
     await expect(service.createLearningResource('faculty2', 'lecture1', { title: 'Lecture notes', type: 'PDF', url: 'https://files.example.org/notes.pdf' }, false)).rejects.toBeInstanceOf(NotFoundException);
