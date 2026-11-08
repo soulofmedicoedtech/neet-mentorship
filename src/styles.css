@@ -7,3 +7,47 @@
 .portal{min-height:100vh;display:grid;grid-template-columns:250px 1fr;background:#f6f6f4;color:#17191d}.sidebar{background:#17191d;color:#fff;padding:27px 18px;display:flex;flex-direction:column;min-height:100vh}.sidebar .brand{padding:0 10px 42px;color:#fff}.sideCaption{font-size:10px;letter-spacing:1.5px;color:#777;padding:0 12px 14px}.sideLink{display:flex;align-items:center;gap:12px;width:100%;padding:13px 12px;border:0;background:none;color:#aaa;text-align:left;border-radius:9px;margin:3px 0;cursor:pointer;font:600 14px 'DM Sans'}.sideLink.active,.sideLink:hover{background:#2b2d31;color:#fff}.sideLink.active svg{color:#ff555a}.sideBottom{margin-top:auto;border-top:1px solid #333;padding:20px 7px 0;display:flex;align-items:center;gap:10px}.sideBottom b,.sideBottom small{display:block}.sideBottom b{font-size:13px}.sideBottom small{font-size:11px;color:#999;margin-top:3px}.avatar{width:35px;height:35px;border-radius:50%;background:#d71920;display:grid;place-items:center;font-size:11px;font-weight:800}.portalMain{min-width:0}.portalTop{height:70px;background:#fff;border-bottom:1px solid #e8e8e5;display:flex;align-items:center;justify-content:space-between;padding:0 5%}.backLink{display:flex;align-items:center;gap:8px;background:none;border:0;color:#555;font:600 13px 'DM Sans';cursor:pointer}.previewTag,.planned{font-size:10px;letter-spacing:1px;font-weight:800;color:#a35b00;background:#fff2d8;padding:7px 10px;border-radius:20px}.portalContent{max-width:1100px;margin:0 auto;padding:35px 5% 70px}.notice{display:flex;align-items:center;gap:9px;background:#fff8e9;border:1px solid #f0dfb9;border-radius:9px;padding:12px 15px;color:#805d22;font-size:12px;margin-bottom:30px}.welcome{display:flex;justify-content:space-between;align-items:center;margin-bottom:27px}.welcome h1,.formPanel h1{font:800 34px Manrope;margin:12px 0 7px;letter-spacing:-1.2px}.welcome p,.formPanel>p{color:#777;margin:0;line-height:1.6}.welcomeIcon{width:60px;height:60px;border-radius:17px;background:#fae8e8;color:#d71920;display:grid;place-items:center}.statGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:20px}.statCard,.panel,.formPanel{background:#fff;border:1px solid #e8e8e5;border-radius:13px;padding:21px}.statCard span{display:block;color:#999;font-size:10px;font-weight:800;letter-spacing:1px}.statCard b{display:block;font:700 18px Manrope;margin:12px 0 7px}.statCard small{color:#888;font-size:11px}.panelGrid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}.panelTitle{display:flex;justify-content:space-between;align-items:center}.panelTitle h2,.learningPanel h2{font:700 18px Manrope}.panelTitle span{font-size:9px;letter-spacing:1px;color:#aaa}.taskRow{width:100%;display:flex;align-items:center;gap:13px;padding:17px 0;border:0;border-top:1px solid #eee;background:none;text-align:left;cursor:pointer;color:#d71920}.taskRow span{flex:1}.taskRow b,.taskRow small{display:block}.taskRow b{font-size:13px;color:#333}.taskRow small{font-size:11px;color:#999;margin-top:5px}.taskRow>svg:last-child{color:#999}.learningPanel>svg{color:#d71920;margin-top:4px}.learningPanel p{font-size:13px;line-height:1.7;color:#888}.textButton{display:flex;align-items:center;gap:8px;border:0;background:none;padding:8px 0;color:#d71920;font-weight:700;cursor:pointer}.formPanel{padding:30px;max-width:900px}.formPanel .eyebrow{margin-bottom:8px}.formGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:28px}.formGrid label{display:flex;flex-direction:column;gap:8px;font-size:12px;font-weight:700;color:#555}.formGrid .wide{grid-column:1/-1}.formGrid input,.formGrid select,.formGrid textarea{width:100%;border:1px solid #ddd;border-radius:8px;padding:12px;background:#fff;font:13px 'DM Sans';color:#333;outline-color:#d71920}.formGrid textarea{resize:vertical}.formActions{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-top:28px;padding-top:20px;border-top:1px solid #eee}.formActions>span{font-size:11px;color:#999}.statusCard{display:flex;gap:13px;align-items:flex-start;background:#f0faf3;border:1px solid #d6eadb;border-radius:9px;padding:15px;margin-top:20px;color:#248447}.statusCard b,.statusCard span{display:block}.statusCard span{font-size:12px;color:#688573;margin-top:4px;line-height:1.5}.roadmap{margin-top:30px}.roadmapRow{display:flex;align-items:center;gap:17px;padding:19px 0;border-bottom:1px solid #eee}.roadmapRow>span:first-child{font:700 14px Manrope;color:#d71920}.roadmapRow div{flex:1}.roadmapRow b,.roadmapRow small{display:block}.roadmapRow b{font-size:14px}.roadmapRow small{font-size:12px;color:#999;margin-top:5px}.planned{color:#777;background:#f1f1ef;padding:6px 9px}.formActions .primary:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:850px){.portal{grid-template-columns:1fr}.sidebar{min-height:auto;padding:17px;display:grid;grid-template-columns:1fr 1fr;align-items:center}.sidebar .brand{padding:0}.sideCaption{display:none}.sideLink{display:none}.sideBottom{display:none}.portalTop{height:60px}.portalContent{padding:25px 5% 50px}.panelGrid{grid-template-columns:1fr}.statGrid{grid-template-columns:1fr}.statCard{padding:17px}.formPanel{padding:22px}.welcome h1,.formPanel h1{font-size:28px}}
 @media(max-width:540px){.formGrid{grid-template-columns:1fr}.formGrid .wide{grid-column:auto}.formActions{align-items:flex-start;flex-direction:column}.welcomeIcon{width:48px;height:48px}.roadmapRow{gap:10px}.planned{font-size:8px}}
+
+
+/* API-backed authentication and student workflows */
+.authWrap{min-height:100vh;display:grid;place-items:center;padding:35px 18px;background:radial-gradient(circle at 15% 15%,#fff 0,#f7f7f5 55%,#f0f0ed 100%)}
+.authPanel{width:min(100%,470px);background:#fff;border:1px solid #e7e7e3;border-radius:18px;padding:36px;box-shadow:0 24px 80px #0000000c}
+.authIcon{width:48px;height:48px;display:grid;place-items:center;background:#fae8e8;color:#d71920;border-radius:13px;margin-bottom:24px}
+.authPanel h1{font:800 31px Manrope;letter-spacing:-1.2px;margin:12px 0 7px}
+.authPanel>p{color:#777;font-size:14px;line-height:1.6;margin:0}
+.authTabs{display:grid;grid-template-columns:1fr 1fr;background:#f4f4f2;border-radius:9px;padding:4px;margin:25px 0 22px}
+.authTabs button{border:0;border-radius:7px;padding:10px;background:transparent;color:#777;font:600 13px 'DM Sans';cursor:pointer}
+.authTabs button.selected{background:#fff;color:#d71920;box-shadow:0 1px 4px #00000010}
+.authForm{display:grid;gap:16px}
+.authForm label{display:grid;gap:7px;font-size:12px;font-weight:700;color:#555}
+.authForm input{width:100%;border:1px solid #ddd;border-radius:8px;padding:13px;font:14px 'DM Sans';outline-color:#d71920}
+.passwordHint,.securityNote{font-size:11px;line-height:1.5;color:#999}
+.authSubmit{width:100%;justify-content:center;margin-top:3px}
+.authFoot{border-top:1px solid #eee;margin-top:23px;padding-top:16px;font-size:10px;color:#999;overflow-wrap:anywhere}
+.authFoot code{color:#777}
+.previewLink{display:block;border:0;background:none;color:#d71920;font:600 12px 'DM Sans';margin:17px auto 0;cursor:pointer}
+.securityNote{text-align:center;margin:17px 0 0}
+.errorBox{background:#fff0ef;border:1px solid #f0c8c5;color:#a52a22;border-radius:8px;padding:11px 13px;font-size:12px;line-height:1.5}
+.portalError{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:-14px 0 24px}
+.portalError button{border:0;background:none;color:inherit;cursor:pointer}
+.topActions{display:flex;align-items:center;gap:12px}
+.connectedTag{font-size:10px;letter-spacing:1px;font-weight:800;color:#187344;background:#e8f6ed;padding:7px 10px;border-radius:20px}
+.logoutButton,.refreshButton{display:inline-flex;align-items:center;gap:6px;border:1px solid #e5e5e2;background:#fff;color:#555;border-radius:8px;padding:8px 10px;font:600 11px 'DM Sans';cursor:pointer}
+.formGrid select[multiple]{min-height:94px}
+.fieldHint{font-size:10px!important;color:#999!important;font-weight:400!important;line-height:1.4}
+.selectedCollege{display:block;color:#187344;font-size:11px}
+.collegeResults{position:relative;z-index:2;border:1px solid #e3e3df;border-radius:8px;overflow:hidden;max-height:190px;overflow-y:auto;background:#fff}
+.collegeResults button{display:block;width:100%;padding:10px 12px;border:0;border-bottom:1px solid #eee;background:#fff;text-align:left;cursor:pointer}
+.collegeResults button:hover{background:#faf4f4}
+.collegeResults b,.collegeResults small{display:block}
+.collegeResults b{font-size:12px;color:#333}
+.collegeResults small{font-size:10px;color:#999;margin-top:4px}
+.applicationHistory{border-top:1px solid #eee;margin-top:30px;padding-top:20px}
+.refreshButton{font-size:10px}
+.emptyState{font-size:12px;color:#999;padding:18px 0}
+.applicationItem{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px 0;border-bottom:1px solid #eee}
+.applicationItem b,.applicationItem small{display:block}
+.applicationItem b{font-size:12px;line-height:1.5;color:#444;max-width:540px}
+.applicationItem small{font-size:10px;color:#999;margin-top:5px}
+.statusPill{white-space:nowrap;border-radius:20px;background:#f1f1ef;color:#666;padding:6px 9px;font-size:9px;font-weight:800;letter-spacing:.5px}
+@media(max-width:540px){.authPanel{padding:27px 22px}.authPanel h1{font-size:27px}.topActions{gap:7px}.logoutButton{padding:7px}.applicationItem{align-items:flex-start;flex-direction:column}}
