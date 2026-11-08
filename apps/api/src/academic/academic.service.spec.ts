@@ -92,7 +92,7 @@ describe('AcademicService', () => {
     await expect(service.listQuestionBookmarks('student1', { page: 1, limit: 10 })).resolves.toMatchObject({ total: 1 });
     const query = prisma.questionBookmark.findMany.mock.calls[0][0];
     expect(query.where).toEqual({ studentProfileId: 'profile1', question: { status: 'PUBLISHED' } });
-    expect(query.select.question.options.select).not.toHaveProperty('isCorrect');
+    expect(query.select.question.select.options.select).not.toHaveProperty('isCorrect');
   });
 
   it('requires exactly one correct answer for a single-best-answer question', async () => {
