@@ -10,10 +10,14 @@ Last updated: 2026-11-08
 - [x] Add initial CI workflow for web build, API build/tests and Prisma validation.
 - [x] Add student registration/login API foundation (not production-ready).
 - [x] Add responsive student portal front-end prototype with profile, mentorship and learning roadmap views.
+- [x] Add authenticated student profile read/update API and student-owned mentorship application endpoints.
+- [x] Add college catalogue read endpoint and initial schema migration (catalogue data not yet seeded).
 - [ ] Install dependencies and run type-check/build in a local development environment.
 - [ ] Provision local PostgreSQL and validate first migration.
 - [ ] Confirm a successful CI run on the latest PR commit.
-- [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting, authenticated route guards and complete RBAC.
+- [ ] Implement email verification, password recovery, refresh-token rotation, rate limiting and complete RBAC.
+- [ ] Add a protected mentor/admin application review workflow.
+- [ ] Connect the React student portal to the API and add end-to-end tests.
 
 ## Current student portal prototype
 - Student portal is reachable from the landing page using the **Student Portal Preview** entry.
