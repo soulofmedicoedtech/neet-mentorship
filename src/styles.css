@@ -198,3 +198,8 @@
 .qbankAuthorNote{font-size:12px;line-height:1.5;color:var(--muted,#667085);margin:0}
 .qbankAuthorForm>.primary{justify-self:start}
 @media(max-width:650px){.qbankAuthorForm{grid-template-columns:1fr}.qbankWide,.qbankAuthorNote{grid-column:auto}}
+
+
+.qbankQuestionHeading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.qbankBookmark{flex:none;border:1px solid var(--line,#d9dee7);border-radius:20px;background:#fff;color:var(--ink,#172033);padding:6px 10px;font:700 11px 'DM Sans';cursor:pointer}
+.qbankBookmark.saved{border-color:#f2c36b;background:#fff8e6;color:#8a5a00}
