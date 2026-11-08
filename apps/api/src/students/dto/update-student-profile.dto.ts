@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 const professionalYears = ['1st Professional', '2nd Professional', '3rd Professional Part I', '3rd Professional Part II', 'Internship', 'Graduate'];
 const examinations = ['NEET PG', 'INI-CET', 'MBBS University Exams'];
