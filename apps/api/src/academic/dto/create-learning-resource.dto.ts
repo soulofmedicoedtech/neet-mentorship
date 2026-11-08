@@ -12,7 +12,7 @@ export class CreateLearningResourceDto {
   @IsEnum(LearningResourceInputType)
   type!: LearningResourceInputType;
 
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
+  @IsUrl({ protocols: ['https'], require_protocol: true })
   url!: string;
 
   @IsOptional() @IsString() @Length(1, 1000)
